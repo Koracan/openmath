@@ -5,6 +5,7 @@ import type {
   ToolDefinition,
   ToolExecutionResult
 } from "../types/tool.js";
+import { createMathematicaMcpTools } from "./mathematica-mcp-tool.js";
 import { createMarkdownTools } from "./markdown-tool.js";
 import { createPythonTool } from "./python-tool.js";
 
@@ -16,7 +17,11 @@ export class ToolRegistry {
   }
 
   static createDefault(): ToolRegistry {
-    return new ToolRegistry([createPythonTool(), ...createMarkdownTools()]);
+    return new ToolRegistry([
+      createPythonTool(),
+      ...createMathematicaMcpTools(),
+      ...createMarkdownTools()
+    ]);
   }
 
   getModelTools(): ModelFunctionTool[] {

@@ -66,7 +66,7 @@ export class SessionManager {
   }
 
   async addModelMessage(content: string, toolCalls?: ToolCall[], reasoning_content?: string): Promise<void> {
-    await this.appendMessage({ role: "model", content, toolCalls, reasoning_content });
+    await this.appendMessage({ role: "assistant", content, toolCalls, reasoning_content });
   }
 
   async addToolMessage(toolCallId: string, name: string, content: string): Promise<void> {

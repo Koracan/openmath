@@ -33,8 +33,8 @@ export class AgentOrchestrator {
   async runUserTurn(userInput: string): Promise<void> {
     await this.sessions.addUserMessage(userInput);
 
-    const maxToolRounds = 6;
-    for (let round = 0; round < maxToolRounds; round += 1) {
+    const maxToolRounds = -1; // no limit
+    for (let round = 0; maxToolRounds < 0 || round < maxToolRounds; round += 1) {
       let hasPrintedContent = false;
 
       printModelPrefix();

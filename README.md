@@ -1,9 +1,10 @@
-# OpenMath CLI（M1~M3）
+# OpenMath CLI（M1~M4）
 
 当前版本已实现：
 - M1：CLI 多会话（/new, /list, /switch, /history, /exit）
 - M2：可配置 OpenAI 兼容 API（流式、重试、超时、限流）
 - M3：Python + Markdown 工具（脚本执行、白名单路径写入）
+- M4：Mathematica MCP 工具接入（tool discovery、健康检查、断线重连）
 
 ## 1. 环境准备
 
@@ -46,6 +47,17 @@ OPENMATH_PYTHON_BIN=python
 OPENMATH_PYTHON_TIMEOUT_SEC=30
 OPENMATH_PYTHON_MAX_OUTPUT_CHARS=12000
 
+OPENMATH_MMA_MCP_ENABLED=enabled
+OPENMATH_MMA_MCP_TRANSPORT=http
+OPENMATH_MMA_MCP_COMMAND=uv
+OPENMATH_MMA_MCP_PROJECT_DIR=C:/Users/korac/source/Python/mma-mcp
+OPENMATH_MMA_MCP_EXTRA_ARGS=
+OPENMATH_MMA_MCP_HTTP_HOST=127.0.0.1
+OPENMATH_MMA_MCP_HTTP_PORT=18080
+OPENMATH_MMA_MCP_TIMEOUT_SEC=45
+OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC=30
+OPENMATH_MMA_MCP_MAX_TEXT_CHARS=12000
+
 OPENMATH_MD_WHITELIST=notes,answers
 ```
 
@@ -62,6 +74,16 @@ OPENMATH_MD_WHITELIST=notes,answers
 - OPENMATH_PYTHON_BIN：Python 可执行命令（如 python 或 py）。
 - OPENMATH_PYTHON_TIMEOUT_SEC：Python 工具执行超时（秒）。
 - OPENMATH_PYTHON_MAX_OUTPUT_CHARS：Python 输出最大字符数。
+- OPENMATH_MMA_MCP_ENABLED：是否启用 Mathematica MCP 工具（enabled/disabled）。
+- OPENMATH_MMA_MCP_TRANSPORT：MCP 传输模式（stdio/http，Windows 建议 http）。
+- OPENMATH_MMA_MCP_COMMAND：启动 mma-mcp 的命令（默认 uv）。
+- OPENMATH_MMA_MCP_PROJECT_DIR：mma-mcp 项目目录（用于 `uv --directory`）。
+- OPENMATH_MMA_MCP_EXTRA_ARGS：附加启动参数（逗号分隔）。
+- OPENMATH_MMA_MCP_HTTP_HOST：HTTP 传输模式的绑定地址。
+- OPENMATH_MMA_MCP_HTTP_PORT：HTTP 传输模式的端口。
+- OPENMATH_MMA_MCP_TIMEOUT_SEC：MCP 请求超时（秒）。
+- OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC：远端工具列表缓存时长（秒）。
+- OPENMATH_MMA_MCP_MAX_TEXT_CHARS：Mathematica 文本结果截断上限。
 - OPENMATH_MD_WHITELIST：Markdown 工具可写路径白名单（逗号分隔）。
 - OPENMATH_THINKING_ENABLED：启用 DeepSeek 思考模式（enabled/disabled，默认 enabled）。仅对支持此功能的 DeepSeek 模型有效。
 - OPENMATH_REASONING_EFFORT：思考模式的推理强度（high/max，默认 high）。

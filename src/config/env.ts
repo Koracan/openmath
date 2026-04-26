@@ -16,6 +16,21 @@ const envSchema = z.object({
   OPENMATH_PYTHON_BIN: z.string().min(1).default("python"),
   OPENMATH_PYTHON_TIMEOUT_SEC: z.coerce.number().int().positive().default(30),
   OPENMATH_PYTHON_MAX_OUTPUT_CHARS: z.coerce.number().int().positive().default(12_000),
+  OPENMATH_MMA_MCP_ENABLED: z.enum(["enabled", "disabled"]).default("enabled"),
+  OPENMATH_MMA_MCP_TRANSPORT: z
+    .enum(["stdio", "http"])
+    .default(process.platform === "win32" ? "http" : "stdio"),
+  OPENMATH_MMA_MCP_COMMAND: z.string().min(1).default("uv"),
+  OPENMATH_MMA_MCP_PROJECT_DIR: z
+    .string()
+    .min(1)
+    .default("C:/Users/korac/source/Python/mma-mcp"),
+  OPENMATH_MMA_MCP_EXTRA_ARGS: z.string().default(""),
+  OPENMATH_MMA_MCP_HTTP_HOST: z.string().min(1).default("127.0.0.1"),
+  OPENMATH_MMA_MCP_HTTP_PORT: z.coerce.number().int().positive().default(18080),
+  OPENMATH_MMA_MCP_TIMEOUT_SEC: z.coerce.number().int().positive().default(45),
+  OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC: z.coerce.number().int().positive().default(30),
+  OPENMATH_MMA_MCP_MAX_TEXT_CHARS: z.coerce.number().int().positive().default(12_000),
   OPENMATH_MD_WHITELIST: z.string().default("notes,answers"),
   OPENMATH_THINKING_ENABLED: z.enum(["enabled", "disabled"]).default("enabled"),
   OPENMATH_REASONING_EFFORT: z.enum(["high", "max"]).default("high")
@@ -43,6 +58,18 @@ export const appConfig = {
   pythonBin: env.OPENMATH_PYTHON_BIN,
   pythonTimeoutSec: env.OPENMATH_PYTHON_TIMEOUT_SEC,
   pythonMaxOutputChars: env.OPENMATH_PYTHON_MAX_OUTPUT_CHARS,
+  mmaMcpEnabled: env.OPENMATH_MMA_MCP_ENABLED === "enabled",
+  mmaMcpTransport: env.OPENMATH_MMA_MCP_TRANSPORT,
+  mmaMcpCommand: env.OPENMATH_MMA_MCP_COMMAND,
+  mmaMcpProjectDir: env.OPENMATH_MMA_MCP_PROJECT_DIR,
+  mmaMcpExtraArgs: env.OPENMATH_MMA_MCP_EXTRA_ARGS.split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean),
+  mmaMcpHttpHost: env.OPENMATH_MMA_MCP_HTTP_HOST,
+  mmaMcpHttpPort: env.OPENMATH_MMA_MCP_HTTP_PORT,
+  mmaMcpTimeoutMs: env.OPENMATH_MMA_MCP_TIMEOUT_SEC * 1000,
+  mmaMcpToolCacheTtlMs: env.OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC * 1000,
+  mmaMcpMaxTextChars: env.OPENMATH_MMA_MCP_MAX_TEXT_CHARS,
   markdownWhitelist: env.OPENMATH_MD_WHITELIST.split(",")
     .map((segment) => segment.trim().replace(/\\/g, "/").replace(/^\//, ""))
     .filter(Boolean),

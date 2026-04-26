@@ -1,4 +1,4 @@
-export type ChatRole = "system" | "user" | "model" | "tool";
+export type ChatRole = "system" | "user" | "assistant" | "tool";
 
 export interface ToolCall {
   id: string;

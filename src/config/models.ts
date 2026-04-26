@@ -33,7 +33,7 @@ interface StreamChunk {
 }
 
 interface ApiMessage {
-  role: "system" | "user" | "model" | "tool";
+  role: "system" | "user" | "assistant" | "tool";
   content: string | null;
   name?: string;
   tool_call_id?: string;
@@ -60,9 +60,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 function toApiMessage(message: ChatMessage): ApiMessage {
-  if (message.role === "model") {
+  if (message.role === "assistant") {
     return {
-      role: "model",
+      role: "assistant",
       content: message.content,
       reasoning_content: message.reasoning_content ?? null,
       tool_calls: message.toolCalls?.map((call) => ({
