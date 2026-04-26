@@ -9,12 +9,32 @@ import {
   printLineBreak,
   printWarn
 } from "../io/stream.js";
+import { renderMarkdownForTerminal } from "../io/markdown-renderer.js";
 
 interface OrchestratorOptions {
   model: OpenAICompatibleModelAdapter;
   sessions: SessionManager;
   tools: ToolRegistry;
   workspaceRoot: string;
+}
+
+const MAX_REASONING_PREVIEW_LENGTH = 240;
+
+function getReasoningPreview(reasoningContent?: string): string | null {
+  if (!reasoningContent) {
+    return null;
+  }
+
+  const normalized = reasoningContent.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length <= MAX_REASONING_PREVIEW_LENGTH) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, MAX_REASONING_PREVIEW_LENGTH)}...`;
 }
 
 export class AgentOrchestrator {
@@ -35,18 +55,20 @@ export class AgentOrchestrator {
 
     const maxToolRounds = -1; // no limit
     for (let round = 0; maxToolRounds < 0 || round < maxToolRounds; round += 1) {
-      let hasPrintedContent = false;
-
       printModelPrefix();
       const model = await this.model.completeChat({
         systemPrompt: SYSTEM_PROMPT,
         messages: this.sessions.getMessages(),
-        tools: this.tools.getModelTools(),
-        onTextDelta: (chunk) => {
-          hasPrintedContent = true;
-          printChunk(chunk);
-        }
+        tools: this.tools.getModelTools()
       });
+
+      let hasPrintedContent = false;
+      if (model.content.trim().length > 0) {
+        const rendered = renderMarkdownForTerminal(model.content);
+        const output = rendered.trim().length > 0 ? rendered : model.content;
+        printChunk(output.trimEnd());
+        hasPrintedContent = true;
+      }
 
       if (!hasPrintedContent && model.toolCalls.length > 0) {
         printChunk("(invoking tools)");
@@ -61,6 +83,11 @@ export class AgentOrchestrator {
 
       if (model.toolCalls.length === 0) {
         return;
+      }
+
+      const reasoningPreview = getReasoningPreview(model.reasoning_content);
+      if (reasoningPreview) {
+        printInfo(`[reasoning] ${reasoningPreview}`);
       }
 
       const currentSession = this.sessions.getCurrentSession();
