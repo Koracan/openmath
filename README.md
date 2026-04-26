@@ -11,6 +11,7 @@
 - Node.js 18+
 - npm 9+
 - Python 3.x（用于 run_python_script 工具）
+- [mma-mcp](https://github.com/siqiliu-tsinghua/mma-mcp/tree/main)
 
 ## 2. .env 配置
 
@@ -28,7 +29,7 @@ Windows PowerShell 可用：
 Copy-Item .env.example .env
 ```
 
-然后编辑 .env，至少填好 OPENMATH_API_KEY。
+然后编辑 .env，至少填好 OPENMATH_API_KEY 和 OPENMATH_MMA_MCP_PROJECT_DIR
 
 ### 2.2 推荐配置示例
 
@@ -50,7 +51,7 @@ OPENMATH_PYTHON_MAX_OUTPUT_CHARS=12000
 OPENMATH_MMA_MCP_ENABLED=enabled
 OPENMATH_MMA_MCP_TRANSPORT=http
 OPENMATH_MMA_MCP_COMMAND=uv
-OPENMATH_MMA_MCP_PROJECT_DIR=C:/Users/korac/source/Python/mma-mcp
+OPENMATH_MMA_MCP_PROJECT_DIR=/path/to/mma-mcp
 OPENMATH_MMA_MCP_EXTRA_ARGS=
 OPENMATH_MMA_MCP_HTTP_HOST=127.0.0.1
 OPENMATH_MMA_MCP_HTTP_PORT=18080
@@ -93,7 +94,7 @@ OPENMATH_MD_WHITELIST=notes,answers
 若使用 DeepSeek 模型，可配置：
 
 ```env
-OPENMATH_BASE_URL=https://api.deepseek.com/v1
+OPENMATH_BASE_URL=https://api.deepseek.com
 OPENMATH_MODEL=deepseek-reasoner
 OPENMATH_API_KEY=your_deepseek_api_key
 OPENMATH_THINKING_ENABLED=enabled
