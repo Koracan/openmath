@@ -1,9 +1,12 @@
 {
   "name": "openmath",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "math agent",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "openmath": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",

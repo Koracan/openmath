@@ -1,8 +1,17 @@
 import dotenv from "dotenv";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
+// Load .env from package installation directory as fallback.
+// This file is at <packageRoot>/dist/config/env.js → packageRoot is two levels up.
+const __filename = fileURLToPath(import.meta.url);
+const packageRoot = path.resolve(__filename, "..", "..", "..");
+
+// 1) Try cwd first — user can override package defaults
 dotenv.config();
+// 2) Fallback to package root — won't override already-set variables
+dotenv.config({ path: path.join(packageRoot, ".env"), override: false });
 
 const envSchema = z.object({
   OPENMATH_PROVIDER: z.string().default("openai-compatible"),

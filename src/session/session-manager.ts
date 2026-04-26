@@ -5,8 +5,31 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function createSessionId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Sanitize a title into a safe filesystem prefix. */
+export function sanitizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-")
+    .slice(0, 30) || "untitled";
+}
+
+function createSessionId(title?: string): string {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (title) {
+    const prefix = sanitizeTitle(title);
+    return `${prefix}-${suffix}`;
+  }
+  // no custom title → purely random id (will be updated later via LLM)
+  return suffix;
+}
+
+export class AmbiguousSessionError extends Error {
+  constructor(public readonly candidates: SessionRecord[]) {
+    super(`Multiple sessions match the prefix.`);
+    this.name = "AmbiguousSessionError";
+  }
 }
 
 export class SessionManager {
@@ -25,8 +48,9 @@ export class SessionManager {
 
   async createSession(title = "new-session"): Promise<SessionRecord> {
     const timestamp = nowIso();
+    const id = createSessionId(title);
     const session: SessionRecord = {
-      id: createSessionId(),
+      id,
       title,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -37,13 +61,43 @@ export class SessionManager {
     return session;
   }
 
-  async switchSession(sessionId: string): Promise<SessionRecord> {
-    const existing = await this.store.load(sessionId);
-    if (!existing) {
-      throw new Error(`Session not found: ${sessionId}`);
+  /** Update the current session's title and id (with title prefix). Renames the .json file on disk. */
+  async updateSessionTitle(newTitle: string): Promise<SessionRecord> {
+    const session = this.getCurrentSession();
+    const oldId = session.id;
+    const newId = createSessionId(newTitle);
+    session.id = newId;
+    session.title = newTitle;
+    if (oldId !== newId) {
+      await this.store.rename(oldId, newId);
     }
-    this.currentSession = existing;
-    return existing;
+    await this.store.save(session);
+    return session;
+  }
+
+  async switchSession(sessionIdOrPrefix: string): Promise<SessionRecord> {
+    // 1) exact match
+    const exact = await this.store.load(sessionIdOrPrefix);
+    if (exact) {
+      this.currentSession = exact;
+      return exact;
+    }
+
+    // 2) prefix match
+    const all = await this.store.list();
+    const candidates = all.filter((s) => s.id.startsWith(sessionIdOrPrefix));
+
+    if (candidates.length === 0) {
+      throw new Error(`Session not found: ${sessionIdOrPrefix}`);
+    }
+    if (candidates.length === 1) {
+      const record = candidates[0]!;
+      this.currentSession = record;
+      return record;
+    }
+
+    // 3) multiple matches → throw with candidates
+    throw new AmbiguousSessionError(candidates);
   }
 
   async listSessions(): Promise<SessionRecord[]> {

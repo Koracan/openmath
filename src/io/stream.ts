@@ -22,6 +22,6 @@ export function printLineBreak(): void {
   process.stdout.write("\n");
 }
 
-export function makePrompt(sessionId: string): string {
-  return `openmath:${sessionId.slice(0, 8)}> `;
+export function makePrompt(title: string): string {
+  return `openmath:${title}> `;
 }

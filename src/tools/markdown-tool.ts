@@ -158,7 +158,7 @@ export function createMarkdownTools(): ToolDefinition[] {
         }
 
         try {
-          const filePath = assertAllowedMarkdownPath(parsed.data.path);
+          const filePath = parsed.data.path;
           const content = await fs.readFile(filePath, "utf8");
           return {
             ok: true,

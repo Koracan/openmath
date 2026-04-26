@@ -55,6 +55,17 @@ export class SessionStore {
     return all[0] ?? null;
   }
 
+  async rename(oldId: string, newId: string): Promise<void> {
+    const oldPath = this.getFilePath(oldId);
+    const newPath = this.getFilePath(newId);
+    await fs.rename(oldPath, newPath);
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    const filePath = this.getFilePath(sessionId);
+    await fs.rm(filePath, { force: true });
+  }
+
   private getFilePath(sessionId: string): string {
     return path.join(this.rootDir, `${sessionId}.json`);
   }
