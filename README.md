@@ -144,8 +144,7 @@ npm link
 
 ```text
 /new calculus-homework
-请用 Python 数值验证这个积分结果
-把最终答案写入 notes/sessions/demo/result.md
+解答 problems/1-1.md 中的问题，把答案放在 answers 下
 ```
 
 ## 5. 常见问题
