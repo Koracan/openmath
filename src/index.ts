@@ -110,6 +110,9 @@ async function main(): Promise<void> {
 
   printInfo("OpenMath CLI is ready.");
   printInfo(`provider=${appConfig.provider}, model=${appConfig.model}`);
+  if(appConfig.thinkingEnabled) {
+    printInfo(`reasoning-effort=${appConfig.reasoningEffort}`);
+  }
   printInfo(`active-session=${current.title}`);
   printInfo("Type /help to show command list.");
 
