@@ -7,6 +7,7 @@ interface CompletionInput {
   messages: ChatMessage[];
   tools: ModelFunctionTool[];
   onTextDelta?: (chunk: string) => void;
+  thinkingEnabled?: boolean;
 }
 
 interface CompletionOutput {
@@ -142,6 +143,8 @@ export class OpenAICompatibleModelAdapter {
         ...input.messages.map(toApiMessage)
       ];
 
+      const thinkingEnabled = input.thinkingEnabled ?? appConfig.thinkingEnabled;
+
       const response = await fetch(`${appConfig.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
@@ -154,7 +157,7 @@ export class OpenAICompatibleModelAdapter {
           stream_options: { include_usage: true },
           messages,
           tools: input.tools.length > 0 ? input.tools : undefined,
-          ...(appConfig.thinkingEnabled && {
+          ...(thinkingEnabled && {
             reasoning_effort: appConfig.reasoningEffort,
             extra_body: { thinking: { type: "enabled" } }
           })

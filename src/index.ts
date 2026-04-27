@@ -104,7 +104,8 @@ Rules:
   const result = await model.completeChat({
     systemPrompt: TITLE_PROMPT,
     messages: [{ role: "user", content: userMessage }],
-    tools: []
+    tools: [],
+    thinkingEnabled: false // disable thinking for title generation
   });
 
   return result.content.trim().replace(/["'"]/g, "") || "untitled";

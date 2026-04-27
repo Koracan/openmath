@@ -43,7 +43,7 @@ const envSchema = z.object({
   OPENMATH_MMA_MCP_MAX_TEXT_CHARS: z.coerce.number().int().positive().default(12_000),
   OPENMATH_MD_WHITELIST: z.string().default("notes,answers"),
   OPENMATH_THINKING_ENABLED: z.enum(["enabled", "disabled"]).default("enabled"),
-  OPENMATH_REASONING_EFFORT: z.enum(["high", "max"]).default("high")
+  OPENMATH_REASONING_EFFORT: z.enum(["low", "medium", "high", "max", "xhigh"]).default("high")
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -85,7 +85,7 @@ export const appConfig = {
     .map((segment) => segment.trim().replace(/\\/g, "/").replace(/^\//, ""))
     .filter(Boolean),
   thinkingEnabled: env.OPENMATH_THINKING_ENABLED === "enabled",
-  reasoningEffort: env.OPENMATH_REASONING_EFFORT as "high" | "max",
+  reasoningEffort: env.OPENMATH_REASONING_EFFORT as "low" | "medium" | "high" | "max" | "xhigh",
   workspaceRoot: process.cwd(),
   sessionsDir: path.join(process.cwd(), "data", "sessions"),
   scriptDir: path.join(process.cwd(), "data", "tmp", "scripts")

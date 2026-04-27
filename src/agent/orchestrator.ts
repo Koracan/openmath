@@ -10,7 +10,10 @@ import {
   printLineBreak,
   printWarn
 } from "../io/stream.js";
-import { renderMarkdownForTerminal } from "../io/markdown-renderer.js";
+import {
+  createMarkdownStreamRenderer,
+  renderMarkdownForTerminal
+} from "../io/markdown-renderer.js";
 
 interface OrchestratorOptions {
   model: OpenAICompatibleModelAdapter;
@@ -112,14 +115,37 @@ export class AgentOrchestrator {
     const maxToolRounds = -1; // no limit
     for (let round = 0; maxToolRounds < 0 || round < maxToolRounds; round += 1) {
       printModelPrefix();
+
+      let hasPrintedContent = false;
+      let sawTextDelta = false;
+      const streamRenderer = createMarkdownStreamRenderer();
       const model = await this.model.completeChat({
         systemPrompt: SYSTEM_PROMPT,
         messages: this.sessions.getMessages(),
-        tools: this.tools.getModelTools()
+        tools: this.tools.getModelTools(),
+        onTextDelta: (chunk) => {
+          sawTextDelta = true;
+          const renderedChunk = streamRenderer.push(chunk);
+          if (renderedChunk.length === 0) {
+            return;
+          }
+
+          printChunk(renderedChunk);
+          if (renderedChunk.trim().length > 0) {
+            hasPrintedContent = true;
+          }
+        }
       });
 
-      let hasPrintedContent = false;
-      if (model.content.trim().length > 0) {
+      if (sawTextDelta) {
+        const trailingRendered = streamRenderer.flush();
+        if (trailingRendered.length > 0) {
+          printChunk(trailingRendered.trimEnd());
+          if (trailingRendered.trim().length > 0) {
+            hasPrintedContent = true;
+          }
+        }
+      } else if (model.content.trim().length > 0) {
         const rendered = renderMarkdownForTerminal(model.content);
         const output = rendered.trim().length > 0 ? rendered : model.content;
         printChunk(output.trimEnd());
