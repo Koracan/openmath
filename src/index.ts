@@ -5,10 +5,15 @@ import { stdin as input, stdout as output } from "node:process";
 import { appConfig } from "./config/env.js";
 import { parseCommand } from "./io/command-parser.js";
 import {
+  colorizeUserLabel,
+  colorizeUserMessageBody,
   makePrompt,
+  printChunk,
   printError,
   printInfo,
-  printWarn
+  printLineBreak,
+  printWarn,
+  resetTerminalStyle
 } from "./io/stream.js";
 import {
   AmbiguousSessionError,
@@ -18,30 +23,43 @@ import { SessionStore } from "./session/session-store.js";
 import { OpenAICompatibleModelAdapter } from "./config/models.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { AgentOrchestrator } from "./agent/orchestrator.js";
+import { renderMarkdownForTerminal } from "./io/markdown-renderer.js";
 import type { ChatMessage, SessionRecord } from "./types/agent.js";
 
-function summarizeContent(content: string, maxLength = 120): string {
-  const oneLine = content.replace(/\s+/g, " ").trim();
-  if (oneLine.length <= maxLength) {
-    return oneLine;
-  }
-  return `${oneLine.slice(0, maxLength)}...`;
+function formatContextUsage(usageTotalTokens: number): string {
+  const usage = Math.max(0, Math.floor(usageTotalTokens));
+  const maxLength = Math.max(1, appConfig.maxContextLength);
+  const percent = Math.round((usage / maxLength) * 100);
+  return `context: ${usage}/${maxLength}, ${percent}%`;
 }
 
-function formatHistoryMessage(message: ChatMessage): string {
+function printCurrentContextUsage(sessions: SessionManager): void {
+  printInfo(formatContextUsage(sessions.getCurrentContextUsageTokens()));
+}
+
+function shouldShowInHistory(message: ChatMessage): boolean {
   if (message.role === "tool") {
-    try {
-      const parsed = JSON.parse(message.content) as {
-        summary?: string;
-      };
-      return `[tool] ${message.name ?? "unknown"}: ${parsed.summary ?? "(no summary)"}`;
-    } catch {
-      return `[tool] ${message.name ?? "unknown"}: ${summarizeContent(message.content)}`;
-    }
+    return false;
+  }
+  if (message.role !== "assistant" && message.role !== "user") {
+    return false;
   }
 
-  const role = message.role.padEnd(9, " ");
-  return `[${role}] ${summarizeContent(message.content)}`;
+  return message.content.trim().length > 0;
+}
+
+function printHistoryMessage(message: ChatMessage): void {
+  const roleLabel = message.role === "user"
+    ? "[user]"
+    : `[${message.role.padEnd(9, " ")}]`;
+  printInfo(message.role === "user" ? colorizeUserLabel(roleLabel) : roleLabel);
+
+  const rendered = renderMarkdownForTerminal(message.content);
+  const output = rendered.trim().length > 0 ? rendered : message.content;
+  const body = output.trimEnd();
+  printChunk(message.role === "user" ? colorizeUserMessageBody(body) : body);
+  printLineBreak();
+  printLineBreak();
 }
 
 function printHelp(): void {
@@ -114,6 +132,7 @@ async function main(): Promise<void> {
     printInfo(`reasoning-effort=${appConfig.reasoningEffort}`);
   }
   printInfo(`active-session=${current.title}`);
+  printCurrentContextUsage(sessions);
   printInfo("Type /help to show command list.");
 
   const rl = createInterface({ input, output });
@@ -123,6 +142,7 @@ async function main(): Promise<void> {
       const cur = sessions.getCurrentSession();
       const prompt = makePrompt(cur.title);
       const line = await rl.question(prompt);
+      resetTerminalStyle();
       const trimmed = line.trim();
 
       if (!trimmed) {
@@ -135,6 +155,7 @@ async function main(): Promise<void> {
           case "new": {
             const next = await sessions.createSession(command.title ?? "new-session");
             printInfo(`Switched to new session: ${next.title}`);
+            printCurrentContextUsage(sessions);
             continue;
           }
           case "list": {
@@ -146,6 +167,7 @@ async function main(): Promise<void> {
             try {
               const switched = await sessions.switchSession(command.sessionId);
               printInfo(`Switched to session: ${switched.title}`);
+              printCurrentContextUsage(sessions);
             } catch (error) {
               if (error instanceof AmbiguousSessionError) {
                 printWarn(
@@ -161,13 +183,15 @@ async function main(): Promise<void> {
             continue;
           }
           case "history": {
-            const history = sessions.getHistory(command.limit);
+            const history = sessions
+              .getHistory(command.limit)
+              .filter((message) => shouldShowInHistory(message));
             if (history.length === 0) {
               printInfo("History is empty.");
               continue;
             }
             for (const message of history) {
-              printInfo(formatHistoryMessage(message));
+              printHistoryMessage(message);
             }
             continue;
           }

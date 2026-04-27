@@ -13,6 +13,7 @@ interface CompletionOutput {
   content: string;
   toolCalls: ToolCall[];
   reasoning_content?: string;
+  usageTotalTokens?: number;
 }
 
 interface StreamChunk {
@@ -30,6 +31,9 @@ interface StreamChunk {
       }>;
     };
   }>;
+  usage?: {
+    total_tokens?: number;
+  };
 }
 
 interface ApiMessage {
@@ -147,6 +151,7 @@ export class OpenAICompatibleModelAdapter {
         body: JSON.stringify({
           model: appConfig.model,
           stream: true,
+          stream_options: { include_usage: true },
           messages,
           tools: input.tools.length > 0 ? input.tools : undefined,
           ...(appConfig.thinkingEnabled && {
@@ -200,6 +205,7 @@ export class OpenAICompatibleModelAdapter {
     let textBuffer = "";
     let modelContent = "";
     let reasoningContent = "";
+    let usageTotalTokens: number | undefined;
     const toolCallsByIndex = new Map<number, ToolCall>();
 
     const consumeLine = (line: string): boolean => {
@@ -222,6 +228,10 @@ export class OpenAICompatibleModelAdapter {
         payload = JSON.parse(payloadText) as StreamChunk;
       } catch {
         return false;
+      }
+
+      if (typeof payload.usage?.total_tokens === "number") {
+        usageTotalTokens = payload.usage.total_tokens;
       }
 
       const delta = payload.choices?.[0]?.delta;
@@ -281,6 +291,7 @@ export class OpenAICompatibleModelAdapter {
           return {
             content: modelContent,
             reasoning_content: reasoningContent || undefined,
+            usageTotalTokens,
             toolCalls: [...toolCallsByIndex.entries()]
               .sort(([left], [right]) => left - right)
               .map(([, call]) => ({
@@ -301,6 +312,7 @@ export class OpenAICompatibleModelAdapter {
     return {
       content: modelContent,
       reasoning_content: reasoningContent || undefined,
+      usageTotalTokens,
       toolCalls: [...toolCallsByIndex.entries()]
         .sort(([left], [right]) => left - right)
         .map(([, call]) => ({

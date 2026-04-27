@@ -20,5 +20,6 @@ export interface SessionRecord {
   title: string;
   createdAt: string;
   updatedAt: string;
+  lastUsageTotalTokens?: number;
   messages: ChatMessage[];
 }
