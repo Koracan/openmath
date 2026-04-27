@@ -105,7 +105,7 @@ Rules:
     systemPrompt: TITLE_PROMPT,
     messages: [{ role: "user", content: userMessage }],
     tools: [],
-    thinkingEnabled: false // disable thinking for title generation
+    thinkingEnabled: false // DeepSeek: disable thinking; GPT-style: force low reasoning effort
   });
 
   return result.content.trim().replace(/["'"]/g, "") || "untitled";

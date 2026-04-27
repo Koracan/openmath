@@ -1,10 +1,10 @@
-# OpenMath CLI（M1~M4）
+# OpenMath CLI
 
 当前版本已实现：
-- M1：CLI 多会话（/new, /list, /switch, /history, /exit）
-- M2：可配置 OpenAI 兼容 API（流式、重试、超时、限流）
-- M3：Python + Markdown 工具（脚本执行、白名单路径写入）
-- M4：Mathematica MCP 工具接入（tool discovery、健康检查、断线重连）
+- CLI 多会话
+- 可配置 OpenAI 兼容 API
+- Python + Markdown 工具
+- Mathematica MCP 工具接入
 
 ## 1. 环境准备
 
@@ -35,12 +35,12 @@ Copy-Item .env.example .env
 
 ```env
 OPENMATH_PROVIDER=openai-compatible
-OPENMATH_BASE_URL=https://api.openai.com/v1
-OPENMATH_MODEL=gpt-4.1-mini
+OPENMATH_BASE_URL=https://api.deepseek.com
+OPENMATH_MODEL=deepseek-v4-flash
 OPENMATH_API_KEY=your_api_key_here
 
 OPENMATH_TIMEOUT_MS=60000
-OPENMATH_MAX_CONTEXT_LENGTH=128000
+OPENMATH_MAX_CONTEXT_LENGTH=1048576
 OPENMATH_MAX_RETRIES=2
 OPENMATH_RETRY_BASE_DELAY_MS=800
 OPENMATH_RPM_LIMIT=30
@@ -88,22 +88,10 @@ OPENMATH_MD_WHITELIST=notes,answers
 - OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC：远端工具列表缓存时长（秒）。
 - OPENMATH_MMA_MCP_MAX_TEXT_CHARS：Mathematica 文本结果截断上限。
 - OPENMATH_MD_WHITELIST：Markdown 工具可写路径白名单（逗号分隔）。
-- OPENMATH_THINKING_ENABLED：启用 DeepSeek 思考模式（enabled/disabled，默认 enabled）。仅对支持此功能的 DeepSeek 模型有效。
-- OPENMATH_REASONING_EFFORT：思考模式的推理强度（high/max，默认 high）。
-
-### 2.4 DeepSeek 思考模式配置
-
-若使用 DeepSeek 模型，可配置：
-
-```env
-OPENMATH_BASE_URL=https://api.deepseek.com
-OPENMATH_MODEL=deepseek-reasoner
-OPENMATH_API_KEY=your_deepseek_api_key
-OPENMATH_THINKING_ENABLED=enabled
-OPENMATH_REASONING_EFFORT=high
-```
-
-启用思考模式后，模型的推理过程（reasoning_content）会自动在消息历史中保留，后续工具调用可继续访问这些推理内容，实现复杂多步问题的一致性推理。
+- OPENMATH_THINKING_ENABLED：推理偏好开关（enabled/disabled，默认 enabled）。
+	- DeepSeek 模式：映射为 `extra_body.thinking` 的 enabled/disabled。
+	- GPT 等模式：无 thinking 开关，`disabled` 时会自动把 `reasoning_effort` 降为 `low`。
+- OPENMATH_REASONING_EFFORT：推理强度（minimal/low/medium/high/max/xhigh，默认 high）。模型可用的推理强度一般只有其中一部分，请查询 API 文档。
 
 ## 3. 安装与启动
 
