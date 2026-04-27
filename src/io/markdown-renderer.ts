@@ -1,15 +1,10 @@
 import katex from "katex";
-import { marked } from "marked";
-import { markedTerminal } from "marked-terminal";
 
 const blockMathDollarPattern = /\$\$([\s\S]+?)\$\$/g;
 const blockMathBracketPattern = /(?<!\\)\\\[([\s\S]+?)(?<!\\)\\\]/g;
 const inlineMathDollarPattern = /(?<!\\)\$([^\n$]+?)\$/g;
 const inlineMathParenPattern = /(?<!\\)\\\((.+?)(?<!\\)\\\)/g;
 const fencedCodePattern = /(```[\s\S]*?```)/g;
-const listItemLinePattern = /^\s*(?:[*+-]|\d+\.)\s+/;
-const strongAsteriskPattern = /\*\*([^*\n]+?)\*\*/g;
-const strongUnderscorePattern = /__([^_\n]+?)__/g;
 
 const streamParagraphBoundaryPattern = /\n\s*\n+/g;
 const streamLineBoundaryPattern = /\n/g;
@@ -47,21 +42,6 @@ const htmlEntityMap: Record<string, string> = {
   ge: ">=",
   ne: "!="
 };
-
-function renderStrongText(text: string): string {
-  if (!process.stdout.isTTY) {
-    return `**${text}**`;
-  }
-
-  return `\u001b[1;33m${text}\u001b[0m`;
-}
-
-marked.use(
-  markedTerminal({
-    reflowText: true,
-    strong: renderStrongText
-  })
-);
 
 function countMatches(source: string, pattern: RegExp): number {
   const matches = source.match(pattern);
@@ -180,27 +160,6 @@ function findStreamFlushBoundary(buffer: string): number {
   return 0;
 }
 
-function fixListStrongMarkup(rendered: string): string {
-  return rendered
-    .split("\n")
-    .map((line) => {
-      if (!listItemLinePattern.test(line)) {
-        return line;
-      }
-
-      const withAsteriskStrong = line.replace(
-        strongAsteriskPattern,
-        (_, text: string) => renderStrongText(text)
-      );
-
-      return withAsteriskStrong.replace(
-        strongUnderscorePattern,
-        (_, text: string) => renderStrongText(text)
-      );
-    })
-    .join("\n");
-}
-
 function decodeHtmlEntities(input: string): string {
   return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]+);/g, (entity, raw) => {
     if (raw.startsWith("#x") || raw.startsWith("#X")) {
@@ -287,19 +246,20 @@ function transformMath(markdown: string): string {
     .join("");
 }
 
-export function renderMarkdownForTerminal(markdown: string): string {
-  const transformed = transformMath(markdown);
-  const rendered = marked.parse(transformed);
-  const output = typeof rendered === "string" ? rendered : transformed;
-  return fixListStrongMarkup(output);
+export function transformMarkdownForDisplay(markdown: string): string {
+  if (!markdown) {
+    return "";
+  }
+
+  return transformMath(markdown);
 }
 
-export interface MarkdownStreamRenderer {
+export interface MarkdownStreamTransformer {
   push(chunk: string): string;
   flush(): string;
 }
 
-export function createMarkdownStreamRenderer(): MarkdownStreamRenderer {
+export function createMarkdownStreamTransformer(): MarkdownStreamTransformer {
   let pending = "";
 
   const drain = (force: boolean): string => {
@@ -316,7 +276,7 @@ export function createMarkdownStreamRenderer(): MarkdownStreamRenderer {
 
       const nextSlice = pending.slice(0, boundary);
       pending = pending.slice(boundary);
-      output += renderMarkdownForTerminal(nextSlice);
+      output += transformMarkdownForDisplay(nextSlice);
 
       if (force) {
         break;

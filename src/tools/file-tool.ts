@@ -8,15 +8,9 @@ function normalizePathPart(value: string): string {
   return value.replace(/\\/g, "/").replace(/^\//, "").replace(/\/+$/, "");
 }
 
-function normalizeHeading(value: string): string {
-  return value.trim().replace(/^#+\s*/, "").trim();
-}
 
-function assertAllowedMarkdownPath(relativePath: string): string {
+function assertAllowedFilePath(relativePath: string): string {
   const normalizedInput = normalizePathPart(relativePath);
-  if (!normalizedInput.toLowerCase().endsWith(".md")) {
-    throw new Error("Only .md files are allowed.");
-  }
 
   const absolute = path.resolve(appConfig.workspaceRoot, normalizedInput);
   const relative = normalizePathPart(path.relative(appConfig.workspaceRoot, absolute));
@@ -25,14 +19,14 @@ function assertAllowedMarkdownPath(relativePath: string): string {
     throw new Error("Path escapes workspace root.");
   }
 
-  const allowed = appConfig.markdownWhitelist.some((prefix) => {
+  const allowed = appConfig.fileWhitelist.some((prefix) => {
     const normalizedPrefix = normalizePathPart(prefix);
     return relative === normalizedPrefix || relative.startsWith(`${normalizedPrefix}/`);
   });
 
   if (!allowed) {
     throw new Error(
-      `Path ${relative} is outside markdown whitelist: ${appConfig.markdownWhitelist.join(", ")}`
+      `Path ${relative} is outside allowed file paths: ${appConfig.fileWhitelist.join(", ")}`
     );
   }
 
@@ -46,68 +40,34 @@ async function atomicWrite(filePath: string, content: string): Promise<void> {
   await fs.rename(tempPath, filePath);
 }
 
-function replaceSection(
+function replaceLines(
   source: string,
-  heading: string,
-  replacement: string,
-  createIfMissing: boolean
+  startLine: number,
+  endLine: number,
+  replacement: string
 ): string {
-  const targetHeading = normalizeHeading(heading);
   const lines = source.split(/\r?\n/);
+  const totalLines = lines.length;
 
-  let headingIndex = -1;
-  let headingLevel = 2;
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? "";
-    const match = line.match(/^(#{1,6})\s+(.*)$/);
-    if (!match) {
-      continue;
-    }
-
-    const hashes = match[1];
-    const headingText = match[2];
-    if (!hashes || !headingText) {
-      continue;
-    }
-
-    if (normalizeHeading(headingText) === targetHeading) {
-      headingIndex = index;
-      headingLevel = hashes.length;
-      break;
-    }
+  if (startLine > totalLines || endLine > totalLines) {
+    throw new Error(
+      `Line range ${startLine}-${endLine} is outside file length (${totalLines} lines).`
+    );
   }
 
-  const replacementLines = replacement.split(/\r?\n/);
-
-  if (headingIndex === -1) {
-    if (!createIfMissing) {
-      throw new Error(`Heading not found: ${targetHeading}`);
-    }
-
-    const suffix = source.trim().length === 0 ? "" : "\n\n";
-    return `${source}${suffix}## ${targetHeading}\n\n${replacement}`.replace(/\n{3,}/g, "\n\n");
-  }
-
-  let sectionEnd = lines.length;
-  for (let index = headingIndex + 1; index < lines.length; index += 1) {
-    const line = lines[index] ?? "";
-    const match = line.match(/^(#{1,6})\s+(.*)$/);
-    const hashes = match?.[1];
-    if (hashes && hashes.length <= headingLevel) {
-      sectionEnd = index;
-      break;
-    }
-  }
+  const replacementLines = replacement.length > 0
+    ? replacement.split(/\r?\n/)
+    : [];
+  const startIndex = startLine - 1;
+  const endIndex = endLine;
 
   const next = [
-    ...lines.slice(0, headingIndex + 1),
-    "",
+    ...lines.slice(0, startIndex),
     ...replacementLines,
-    ...lines.slice(sectionEnd)
+    ...lines.slice(endIndex)
   ];
 
-  return next.join("\n").replace(/\n{3,}/g, "\n\n");
+  return next.join("\n");
 }
 
 const readArgsSchema = z.object({
@@ -126,22 +86,22 @@ const appendArgsSchema = z.object({
 
 const replaceArgsSchema = z.object({
   path: z.string().min(1),
-  heading: z.string().min(1),
-  content: z.string(),
-  createIfMissing: z.boolean().optional()
+  startLine: z.number().int().positive(),
+  endLine: z.number().int().positive(),
+  content: z.string()
 });
 
-export function createMarkdownTools(): ToolDefinition[] {
+export function createFileTools(): ToolDefinition[] {
   return [
     {
-      name: "markdown_read_file",
-      description: "Read a markdown file from the allowed workspace paths.",
+      name: "read_file",
+      description: "Read a file from the allowed workspace paths.",
       parameters: {
         type: "object",
         properties: {
           path: {
             type: "string",
-            description: "Workspace-relative path to the markdown file."
+            description: "Workspace-relative path to the file."
           }
         },
         required: ["path"],
@@ -152,7 +112,7 @@ export function createMarkdownTools(): ToolDefinition[] {
         if (!parsed.success) {
           return {
             ok: false,
-            summary: "Invalid arguments for markdown_read_file.",
+            summary: "Invalid arguments for read_file.",
             error: parsed.error.message
           };
         }
@@ -162,7 +122,7 @@ export function createMarkdownTools(): ToolDefinition[] {
           const content = await fs.readFile(filePath, "utf8");
           return {
             ok: true,
-            summary: "Markdown file read successfully.",
+            summary: "File read successfully.",
             data: {
               path: normalizePathPart(parsed.data.path),
               content
@@ -171,25 +131,25 @@ export function createMarkdownTools(): ToolDefinition[] {
         } catch (error) {
           return {
             ok: false,
-            summary: "Failed to read markdown file.",
+            summary: "Failed to read file.",
             error: (error as Error).message
           };
         }
       }
     },
     {
-      name: "markdown_write_file",
-      description: "Write full content to a markdown file using atomic replacement.",
+      name: "write_file",
+      description: "Write full content to a file using atomic replacement.",
       parameters: {
         type: "object",
         properties: {
           path: {
             type: "string",
-            description: "Workspace-relative path to the markdown file."
+            description: "Workspace-relative path to the file."
           },
           content: {
             type: "string",
-            description: "Full markdown content to persist."
+            description: "Full content to persist."
           }
         },
         required: ["path", "content"],
@@ -200,41 +160,41 @@ export function createMarkdownTools(): ToolDefinition[] {
         if (!parsed.success) {
           return {
             ok: false,
-            summary: "Invalid arguments for markdown_write_file.",
+            summary: "Invalid arguments for write_file.",
             error: parsed.error.message
           };
         }
 
         try {
-          const filePath = assertAllowedMarkdownPath(parsed.data.path);
+          const filePath = assertAllowedFilePath(parsed.data.path);
           await atomicWrite(filePath, parsed.data.content);
           return {
             ok: true,
-            summary: "Markdown file written successfully.",
+            summary: "File written successfully.",
             data: { path: normalizePathPart(parsed.data.path) }
           };
         } catch (error) {
           return {
             ok: false,
-            summary: "Failed to write markdown file.",
+            summary: "Failed to write file.",
             error: (error as Error).message
           };
         }
       }
     },
     {
-      name: "markdown_append",
-      description: "Append text to an existing markdown file or create it when missing.",
+      name: "file_append",
+      description: "Append text to an existing file or create it when missing.",
       parameters: {
         type: "object",
         properties: {
           path: {
             type: "string",
-            description: "Workspace-relative path to the markdown file."
+            description: "Workspace-relative path to the file."
           },
           content: {
             type: "string",
-            description: "Markdown snippet to append."
+            description: "Text to append."
           }
         },
         required: ["path", "content"],
@@ -245,13 +205,13 @@ export function createMarkdownTools(): ToolDefinition[] {
         if (!parsed.success) {
           return {
             ok: false,
-            summary: "Invalid arguments for markdown_append.",
+            summary: "Invalid arguments for file_append.",
             error: parsed.error.message
           };
         }
 
         try {
-          const filePath = assertAllowedMarkdownPath(parsed.data.path);
+          const filePath = assertAllowedFilePath(parsed.data.path);
           let existing = "";
           try {
             existing = await fs.readFile(filePath, "utf8");
@@ -267,43 +227,43 @@ export function createMarkdownTools(): ToolDefinition[] {
 
           return {
             ok: true,
-            summary: "Markdown content appended successfully.",
+            summary: "File content appended successfully.",
             data: { path: normalizePathPart(parsed.data.path) }
           };
         } catch (error) {
           return {
             ok: false,
-            summary: "Failed to append markdown content.",
+            summary: "Failed to append file content.",
             error: (error as Error).message
           };
         }
       }
     },
     {
-      name: "markdown_replace_section",
+      name: "file_replace_lines",
       description:
-        "Replace content under a markdown heading while preserving other sections.",
+        "Replace the inclusive line range [startLine, endLine] (1-based) with new content.",
       parameters: {
         type: "object",
         properties: {
           path: {
             type: "string",
-            description: "Workspace-relative path to the markdown file."
+            description: "Workspace-relative path to the file."
           },
-          heading: {
-            type: "string",
-            description: "Heading text to replace, without leading hashes."
+          startLine: {
+            type: "number",
+            description: "Start line number (1-based, inclusive)."
+          },
+          endLine: {
+            type: "number",
+            description: "End line number (1-based, inclusive)."
           },
           content: {
             type: "string",
-            description: "New markdown content for this section."
-          },
-          createIfMissing: {
-            type: "boolean",
-            description: "Create section when heading does not exist. Defaults to true."
+            description: "Replacement content for the line range."
           }
         },
-        required: ["path", "heading", "content"],
+        required: ["path", "startLine", "endLine", "content"],
         additionalProperties: false
       },
       execute: async (args): Promise<ToolExecutionResult> => {
@@ -311,13 +271,21 @@ export function createMarkdownTools(): ToolDefinition[] {
         if (!parsed.success) {
           return {
             ok: false,
-            summary: "Invalid arguments for markdown_replace_section.",
+            summary: "Invalid arguments for file_replace_lines.",
             error: parsed.error.message
           };
         }
 
+        if (parsed.data.endLine < parsed.data.startLine) {
+          return {
+            ok: false,
+            summary: "Invalid line range for file_replace_lines.",
+            error: "endLine must be greater than or equal to startLine."
+          };
+        }
+
         try {
-          const filePath = assertAllowedMarkdownPath(parsed.data.path);
+          const filePath = assertAllowedFilePath(parsed.data.path);
           let source = "";
           try {
             source = await fs.readFile(filePath, "utf8");
@@ -327,27 +295,28 @@ export function createMarkdownTools(): ToolDefinition[] {
             }
           }
 
-          const next = replaceSection(
+          const next = replaceLines(
             source,
-            parsed.data.heading,
-            parsed.data.content,
-            parsed.data.createIfMissing ?? true
+            parsed.data.startLine,
+            parsed.data.endLine,
+            parsed.data.content
           );
 
           await atomicWrite(filePath, next);
 
           return {
             ok: true,
-            summary: "Markdown section replaced successfully.",
+            summary: "File lines replaced successfully.",
             data: {
               path: normalizePathPart(parsed.data.path),
-              heading: normalizeHeading(parsed.data.heading)
+              startLine: parsed.data.startLine,
+              endLine: parsed.data.endLine
             }
           };
         } catch (error) {
           return {
             ok: false,
-            summary: "Failed to replace markdown section.",
+            summary: "Failed to replace file lines.",
             error: (error as Error).message
           };
         }

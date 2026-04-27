@@ -3,23 +3,21 @@ import { OpenAICompatibleModelAdapter } from "../config/models.js";
 import { appConfig } from "../config/env.js";
 import { SessionManager } from "../session/session-manager.js";
 import { ToolRegistry } from "../tools/registry.js";
-import {
-  printModelPrefix,
-  printChunk,
-  printInfo,
-  printLineBreak,
-  printWarn
-} from "../io/stream.js";
-import {
-  createMarkdownStreamRenderer,
-  renderMarkdownForTerminal
-} from "../io/markdown-renderer.js";
 
 interface OrchestratorOptions {
   model: OpenAICompatibleModelAdapter;
   sessions: SessionManager;
   tools: ToolRegistry;
   workspaceRoot: string;
+}
+
+export type OrchestratorStatusKind = "info" | "warn" | "error";
+
+export interface OrchestratorOutput {
+  onStatus?: (kind: OrchestratorStatusKind, message: string) => void;
+  onStreamStart?: () => void;
+  onStreamDelta?: (chunk: string) => void;
+  onStreamEnd?: () => void;
 }
 
 const MAX_REASONING_PREVIEW_LENGTH = 240;
@@ -58,6 +56,14 @@ function getReasoningPreview(reasoningContent?: string): string | null {
   return `${normalized.slice(0, MAX_REASONING_PREVIEW_LENGTH)}...`;
 }
 
+function emitStatus(
+  output: OrchestratorOutput | undefined,
+  kind: OrchestratorStatusKind,
+  message: string
+): void {
+  output?.onStatus?.(kind, message);
+}
+
 export class AgentOrchestrator {
   private readonly model: OpenAICompatibleModelAdapter;
   private readonly sessions: SessionManager;
@@ -71,7 +77,10 @@ export class AgentOrchestrator {
     this.workspaceRoot = options.workspaceRoot;
   }
 
-  private async maybeCompressContext(usageTotalTokens?: number): Promise<void> {
+  private async maybeCompressContext(
+    usageTotalTokens?: number,
+    output?: OrchestratorOutput
+  ): Promise<void> {
     if (typeof usageTotalTokens !== "number" || !shouldCompressContext(usageTotalTokens)) {
       return;
     }
@@ -83,7 +92,7 @@ export class AgentOrchestrator {
       return;
     }
 
-    printInfo(`[context] before ${formatContextUsage(usageTotalTokens)}`);
+    emitStatus(output, "info", `[context] before ${formatContextUsage(usageTotalTokens)}`);
 
     try {
       const probe = await this.model.completeChat({
@@ -94,68 +103,78 @@ export class AgentOrchestrator {
 
       if (typeof probe.usageTotalTokens === "number") {
         await this.sessions.setCurrentContextUsageTokens(probe.usageTotalTokens);
-        printInfo(`[context] after  ${formatContextUsage(probe.usageTotalTokens)}`);
+        emitStatus(output, "info", `[context] after  ${formatContextUsage(probe.usageTotalTokens)}`);
         return;
       }
 
-      printWarn("[context] compressed, but post-compression usage is unavailable.");
+      emitStatus(
+        output,
+        "warn",
+        "[context] compressed, but post-compression usage is unavailable."
+      );
     } catch (error) {
-      printWarn(`[context] compressed, but usage probe failed: ${(error as Error).message}`);
+      emitStatus(
+        output,
+        "warn",
+        `[context] compressed, but usage probe failed: ${(error as Error).message}`
+      );
     }
   }
 
-  async runUserTurn(userInput: string): Promise<void> {
+  async runUserTurn(
+    userInput: string,
+    output?: OrchestratorOutput
+  ): Promise<string | null> {
     const lastKnownUsage = this.sessions.getCurrentContextUsageTokens();
     if (shouldCompressContext(lastKnownUsage)) {
-      await this.maybeCompressContext(lastKnownUsage);
+      await this.maybeCompressContext(lastKnownUsage, output);
     }
 
     await this.sessions.addUserMessage(userInput);
 
     const maxToolRounds = -1; // no limit
     for (let round = 0; maxToolRounds < 0 || round < maxToolRounds; round += 1) {
-      printModelPrefix();
-
       let hasPrintedContent = false;
       let sawTextDelta = false;
-      const streamRenderer = createMarkdownStreamRenderer();
+      let startedStream = false;
+      const startStream = (): void => {
+        if (!startedStream) {
+          startedStream = true;
+          output?.onStreamStart?.();
+        }
+      };
       const model = await this.model.completeChat({
         systemPrompt: SYSTEM_PROMPT,
         messages: this.sessions.getMessages(),
         tools: this.tools.getModelTools(),
         onTextDelta: (chunk) => {
           sawTextDelta = true;
-          const renderedChunk = streamRenderer.push(chunk);
-          if (renderedChunk.length === 0) {
+          if (!chunk) {
             return;
           }
 
-          printChunk(renderedChunk);
-          if (renderedChunk.trim().length > 0) {
+          startStream();
+          output?.onStreamDelta?.(chunk);
+          if (chunk.trim().length > 0) {
             hasPrintedContent = true;
           }
         }
       });
 
       if (sawTextDelta) {
-        const trailingRendered = streamRenderer.flush();
-        if (trailingRendered.length > 0) {
-          printChunk(trailingRendered.trimEnd());
-          if (trailingRendered.trim().length > 0) {
-            hasPrintedContent = true;
-          }
+        if (startedStream) {
+          output?.onStreamEnd?.();
         }
       } else if (model.content.trim().length > 0) {
-        const rendered = renderMarkdownForTerminal(model.content);
-        const output = rendered.trim().length > 0 ? rendered : model.content;
-        printChunk(output.trimEnd());
+        startStream();
+        output?.onStreamDelta?.(model.content);
+        output?.onStreamEnd?.();
         hasPrintedContent = true;
       }
 
       if (!hasPrintedContent && model.toolCalls.length > 0) {
-        printChunk("(invoking tools)");
+        emitStatus(output, "info", "(invoking tools)");
       }
-      printLineBreak();
 
       await this.sessions.addModelMessage(
         model.content,
@@ -168,18 +187,18 @@ export class AgentOrchestrator {
       }
 
       if (model.toolCalls.length === 0) {
-        await this.maybeCompressContext(model.usageTotalTokens);
-        return;
+        await this.maybeCompressContext(model.usageTotalTokens, output);
+        return model.content;
       }
 
       const reasoningPreview = getReasoningPreview(model.reasoning_content);
       if (reasoningPreview) {
-        printInfo(`[reasoning] ${reasoningPreview}`);
+        emitStatus(output, "info", `[reasoning] ${reasoningPreview}`);
       }
 
       const currentSession = this.sessions.getCurrentSession();
       for (const toolCall of model.toolCalls) {
-        printInfo(`[tool] ${toolCall.name}`);
+        emitStatus(output, "info", `[tool] ${toolCall.name}`);
         const result = await this.tools.executeToolCall(toolCall, {
           workspaceRoot: this.workspaceRoot,
           sessionId: currentSession.id
@@ -194,12 +213,13 @@ export class AgentOrchestrator {
         const short = result.ok
           ? result.summary
           : `failed: ${result.error ?? result.summary}`;
-        printInfo(`[tool-result] ${short}`);
+        emitStatus(output, "info", `[tool-result] ${short}`);
       }
 
-      await this.maybeCompressContext(model.usageTotalTokens);
+      await this.maybeCompressContext(model.usageTotalTokens, output);
     }
 
-    printWarn("Tool call loop reached max rounds for this turn.");
+    emitStatus(output, "warn", "Tool call loop reached max rounds for this turn.");
+    return null;
   }
 }

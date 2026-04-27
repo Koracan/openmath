@@ -1,6 +1,6 @@
 import { appConfig } from "../config/env.js";
 
-const markdownWhitelistHint = appConfig.markdownWhitelist
+const fileWhitelistHint = appConfig.fileWhitelist
   .map((segment) => `- ${segment}`)
   .join("\\n");
 
@@ -13,9 +13,9 @@ export const SYSTEM_PROMPT =[
   "2. PURE PROOFS & LOGIC (e.g., Graph theory, inequalities, pure geometry): DO NOT use Python or Mathematica.",
   "3. PYTHON: Use ONLY for data processing, heavy numerical computation, approximations, algorithmic loops, and probability simulations.",
   "4. MATHEMATICA: Use for precise symbolic manipulation, calculus (integrals/derivatives), algebraic equations, and complex formula simplifications.",
-  "5. MARKDOWN & FILE SYSTEM:",
-  "   - You can ONLY write .md files under these whitelist path prefixes:",
-  markdownWhitelistHint,
+  "5. FILE SYSTEM:",
+  "   - You can ONLY write files under these whitelist path prefixes:",
+  fileWhitelistHint,
   "   - You can use .md as notes to keep important information.",
   "   - If a requested output path is outside the whitelist, ask the user to choose a path inside the allowed prefixes.",
   "   - Organize outputs properly by creating descriptive folders and filenames.",

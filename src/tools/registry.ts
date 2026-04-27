@@ -6,7 +6,7 @@ import type {
   ToolExecutionResult
 } from "../types/tool.js";
 import { createMathematicaMcpTools } from "./mathematica-mcp-tool.js";
-import { createMarkdownTools } from "./markdown-tool.js";
+import { createFileTools } from "./file-tool.js";
 import { createPythonTool } from "./python-tool.js";
 
 export class ToolRegistry {
@@ -20,7 +20,7 @@ export class ToolRegistry {
     return new ToolRegistry([
       createPythonTool(),
       ...createMathematicaMcpTools(),
-      ...createMarkdownTools()
+      ...createFileTools()
     ]);
   }
 

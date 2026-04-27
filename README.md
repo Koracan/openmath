@@ -60,7 +60,7 @@ OPENMATH_MMA_MCP_TIMEOUT_SEC=45
 OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC=30
 OPENMATH_MMA_MCP_MAX_TEXT_CHARS=12000
 
-OPENMATH_MD_WHITELIST=notes,answers
+OPENMATH_FILE_WHITELIST=notes,answers
 ```
 
 ### 2.3 配置项说明
@@ -87,7 +87,7 @@ OPENMATH_MD_WHITELIST=notes,answers
 - OPENMATH_MMA_MCP_TIMEOUT_SEC：MCP 请求超时（秒）。
 - OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC：远端工具列表缓存时长（秒）。
 - OPENMATH_MMA_MCP_MAX_TEXT_CHARS：Mathematica 文本结果截断上限。
-- OPENMATH_MD_WHITELIST：Markdown 工具可写路径白名单（逗号分隔）。
+- OPENMATH_FILE_WHITELIST：文件工具可写路径白名单（逗号分隔）。
 - OPENMATH_THINKING_ENABLED：推理偏好开关（enabled/disabled，默认 enabled）。
 	- DeepSeek 模式：映射为 `extra_body.thinking` 的 enabled/disabled。
 	- GPT 等模式：无 thinking 开关，`disabled` 时会自动把 `reasoning_effort` 降为 `low`。
@@ -120,7 +120,7 @@ npm link
 
 ## 4. CLI 使用方法
 
-启动后输入自然语言可直接提问，以反斜杠`\`结尾可以换行而不发送，输入斜杠命令可管理会话。
+启动后输入自然语言可直接提问，用 Alt+Enter 换行，Enter 发送。输入斜杠命令可管理会话。
 
 常用命令：
 - /new [title]：新建并切换会话
@@ -134,7 +134,7 @@ npm link
 
 ```text
 /new calculus-homework
-解答 problems/1-1.md 中的问题\
+解答 problems/1-1.md 中的问题
 把答案放在 answers 下
 ```
 
@@ -150,6 +150,6 @@ npm link
 - OPENMATH_PYTHON_BIN 是否正确（可尝试 python 或 py）
 - 本机是否能在终端直接运行对应 Python 命令
 
-### 5.3 Markdown 写入被拒绝
+### 5.3 文件写入被拒绝
 
-目标路径必须在 OPENMATH_MD_WHITELIST 白名单中，并且必须是 .md 文件。
+目标路径必须在 OPENMATH_FILE_WHITELIST 白名单中。

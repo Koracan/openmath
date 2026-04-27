@@ -41,7 +41,7 @@ const envSchema = z.object({
   OPENMATH_MMA_MCP_TIMEOUT_SEC: z.coerce.number().int().positive().default(45),
   OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC: z.coerce.number().int().positive().default(30),
   OPENMATH_MMA_MCP_MAX_TEXT_CHARS: z.coerce.number().int().positive().default(12_000),
-  OPENMATH_MD_WHITELIST: z.string().default("notes,answers"),
+  OPENMATH_FILE_WHITELIST: z.string().default("notes,answers"),
   OPENMATH_THINKING_ENABLED: z.enum(["enabled", "disabled"]).default("enabled"),
   OPENMATH_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high", "max", "xhigh"]).default("high")
 });
@@ -81,7 +81,7 @@ export const appConfig = {
   mmaMcpTimeoutMs: env.OPENMATH_MMA_MCP_TIMEOUT_SEC * 1000,
   mmaMcpToolCacheTtlMs: env.OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC * 1000,
   mmaMcpMaxTextChars: env.OPENMATH_MMA_MCP_MAX_TEXT_CHARS,
-  markdownWhitelist: env.OPENMATH_MD_WHITELIST.split(",")
+  fileWhitelist: env.OPENMATH_FILE_WHITELIST.split(",")
     .map((segment) => segment.trim().replace(/\\/g, "/").replace(/^\//, ""))
     .filter(Boolean),
   thinkingEnabled: env.OPENMATH_THINKING_ENABLED === "enabled",
