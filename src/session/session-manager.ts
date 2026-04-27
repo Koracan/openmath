@@ -147,7 +147,7 @@ export class SessionManager {
       this.currentSession = latest;
       return latest;
     }
-    return this.createSession("default");
+    return this.createSession("new-session");
   }
 
   async createSession(title = "new-session"): Promise<SessionRecord> {

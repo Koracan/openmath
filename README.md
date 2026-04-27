@@ -132,7 +132,7 @@ npm link
 
 ## 4. CLI 使用方法
 
-启动后输入自然语言可直接提问，输入斜杠命令可管理会话。
+启动后输入自然语言可直接提问，以反斜杠`\`结尾可以换行而不发送，输入斜杠命令可管理会话。
 
 常用命令：
 - /new [title]：新建并切换会话
@@ -146,7 +146,8 @@ npm link
 
 ```text
 /new calculus-homework
-解答 problems/1-1.md 中的问题，把答案放在 answers 下
+解答 problems/1-1.md 中的问题\
+把答案放在 answers 下
 ```
 
 ## 5. 常见问题

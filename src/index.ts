@@ -136,6 +136,7 @@ async function main(): Promise<void> {
   printInfo("Type /help to show command list.");
 
   const rl = createInterface({ input, output });
+  let pendingMultilineInput = "";
 
   try {
     while (true) {
@@ -143,13 +144,24 @@ async function main(): Promise<void> {
       const prompt = makePrompt(cur.title);
       const line = await rl.question(prompt);
       resetTerminalStyle();
-      const trimmed = line.trim();
+
+      if (line.endsWith("\\")) {
+        pendingMultilineInput += `${line.slice(0, -1)}\n`;
+        continue;
+      }
+
+      const hasPendingMultilineInput = pendingMultilineInput.length > 0;
+      const userInput = hasPendingMultilineInput
+        ? `${pendingMultilineInput}${line}`
+        : line;
+      pendingMultilineInput = "";
+      const trimmed = userInput.trim();
 
       if (!trimmed) {
         continue;
       }
 
-      const command = parseCommand(trimmed);
+      const command = hasPendingMultilineInput ? null : parseCommand(trimmed);
       if (command) {
         switch (command.type) {
           case "new": {
@@ -217,7 +229,7 @@ async function main(): Promise<void> {
       if (sessions.getCurrentSession().title === "new-session") {
         printInfo("(generating session title…)");
         try {
-          const generated = await generateSessionTitle(model, trimmed);
+          const generated = await generateSessionTitle(model, userInput);
           const updated = await sessions.updateSessionTitle(generated);
           printInfo(`Session title: ${updated.title}`);
         } catch {
@@ -226,7 +238,7 @@ async function main(): Promise<void> {
       }
 
       try {
-        await orchestrator.runUserTurn(trimmed);
+        await orchestrator.runUserTurn(userInput);
       } catch (error) {
         printError((error as Error).message);
       }
