@@ -1,4 +1,4 @@
-import katex from "katex";
+import { convertLatexToAsciiMath } from "mathlive";
 
 const blockMathDollarPattern = /\$\$([\s\S]+?)\$\$/g;
 const blockMathBracketPattern = /(?<!\\)\\\[([\s\S]+?)(?<!\\)\\\]/g;
@@ -26,22 +26,34 @@ const STREAM_MIN_CHARS_FOR_SENTENCE_FLUSH = 56;
 const STREAM_FORCE_FLUSH_CHARS = 220;
 const STREAM_HARD_FLUSH_CHARS = 480;
 
-const htmlEntityMap: Record<string, string> = {
-  amp: "&",
-  apos: "'",
-  quot: '"',
-  lt: "<",
-  gt: ">",
-  nbsp: " ",
-  ThinSpace: " ",
-  InvisibleTimes: "x",
-  PlusMinus: "+-",
-  MinusPlus: "-+",
-  CenterDot: ".",
-  le: "<=",
-  ge: ">=",
-  ne: "!="
-};
+/**
+ * Strip LaTeX percent-sign comments (% to end of line).
+ * Respects escaped percent \%.
+ */
+function stripLatexComments(latex: string): string {
+  return latex.replace(/(?<!\\)%.*$/gm, "");
+}
+
+function renderMath(expression: string, displayMode: boolean): string {
+  const source = expression.trim();
+  const cleaned = stripLatexComments(source);
+  if (!cleaned.trim()) {
+    return "";
+  }
+
+  try {
+    const ascii = convertLatexToAsciiMath(cleaned);
+    if (!ascii || ascii.trim().length === 0) {
+      // Fallback: wrap raw LaTeX in code markers to prevent markdown reinterpretation
+      return displayMode ? `\`\`\`\n${source}\n\`\`\`` : `\`${source}\``;
+    }
+    const result = ascii.trim();
+    // Wrap in code markers so ink-markdown-es renders special chars literally
+    return displayMode ? `\`\`\`\n${result}\n\`\`\`` : `\`${result}\``;
+  } catch {
+    return displayMode ? `\`\`\`\n${source}\n\`\`\`` : `\`${source}\``;
+  }
+}
 
 function countMatches(source: string, pattern: RegExp): number {
   const matches = source.match(pattern);
@@ -158,60 +170,6 @@ function findStreamFlushBoundary(buffer: string): number {
   }
 
   return 0;
-}
-
-function decodeHtmlEntities(input: string): string {
-  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]+);/g, (entity, raw) => {
-    if (raw.startsWith("#x") || raw.startsWith("#X")) {
-      const codePoint = Number.parseInt(raw.slice(2), 16);
-      if (Number.isFinite(codePoint)) {
-        return String.fromCodePoint(codePoint);
-      }
-      return entity;
-    }
-
-    if (raw.startsWith("#")) {
-      const codePoint = Number.parseInt(raw.slice(1), 10);
-      if (Number.isFinite(codePoint)) {
-        return String.fromCodePoint(codePoint);
-      }
-      return entity;
-    }
-
-    return htmlEntityMap[raw] ?? entity;
-  });
-}
-
-function stripTags(html: string): string {
-  const withoutAnnotations = html
-    .replace(/<annotation[\s\S]*?<\/annotation>/g, " ")
-    .replace(/<annotation-xml[\s\S]*?<\/annotation-xml>/g, " ");
-  const withoutTags = withoutAnnotations.replace(/<[^>]*>/g, " ");
-  const decoded = decodeHtmlEntities(withoutTags);
-  return decoded.replace(/\s+/g, " ").trim();
-}
-
-function renderMath(expression: string, displayMode: boolean): string {
-  const source = expression.trim();
-  if (!source) {
-    return "";
-  }
-
-  try {
-    const rendered = katex.renderToString(source, {
-      displayMode,
-      throwOnError: false,
-      strict: "ignore",
-      output: "mathml"
-    });
-    const plain = stripTags(rendered);
-    if (!plain) {
-      return displayMode ? `\n${source}\n` : source;
-    }
-    return displayMode ? `\n${plain}\n` : plain;
-  } catch {
-    return displayMode ? `\n${source}\n` : source;
-  }
 }
 
 function transformMathInSegment(segment: string): string {
