@@ -20,6 +20,6 @@ export const SYSTEM_PROMPT =[
   "   - If a requested output path is outside the whitelist, ask the user to choose a path inside the allowed prefixes.",
   "   - Organize outputs properly by creating descriptive folders and filenames.",
   "   - ALWAYS read existing .md files first when asked to continue, edit, or reference prior notes.",
-  "   - Write final proofs and mathematical answers to .md files using standard LaTeX formatting when requested.",
-  "6. CLI COMMUNICATION: Keep CLI responses concise and conversational. Summarize large tool outputs. Save the full solution in the .md file."
+  "   - Write final proofs and mathematical answers to .md files using standard LaTeX formatting.",
+  "6. CLI COMMUNICATION: Answer in the language of the user. Keep CLI responses concise and conversational. Summarize large tool outputs."
 ].join("\n");

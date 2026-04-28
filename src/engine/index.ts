@@ -1,13 +1,24 @@
 import path from "node:path";
-import { appConfig, loadConfigFromFile as loadEnvFile, updateAppConfig } from "../config/env.js";
+import {
+  appConfig,
+  loadConfigFromFile as loadEnvFile,
+  updateAppConfig,
+} from "../config/env.js";
 import { OpenAICompatibleModelAdapter } from "../config/models.js";
 import { AgentOrchestrator } from "../agent/orchestrator.js";
-import type { OrchestratorOutput, OrchestratorStatusKind } from "../agent/orchestrator.js";
+import type {
+  OrchestratorOutput,
+  OrchestratorStatusKind,
+} from "../agent/orchestrator.js";
 import { SessionManager } from "../session/session-manager.js";
 import { SessionStore } from "../session/session-store.js";
 import { ToolRegistry } from "../tools/registry.js";
 import type { ChatMessage, SessionRecord, ToolCall } from "../types/agent.js";
-import type { ConfigOptions, EngineEventCallbacks, EngineState } from "../types/engine.js";
+import type {
+  ConfigOptions,
+  EngineEventCallbacks,
+  EngineState,
+} from "../types/engine.js";
 
 // ---------------------------------------------------------------------------
 // Internal: generate a session title from the user's first message.
@@ -260,6 +271,23 @@ export class OpenMathEngine {
     this.assertReady();
     const session = await this.sessions!.switchSession(sessionId);
     this.emitStateChange();
+    return session;
+  }
+
+  /** Update the current session's title only (without changing id or filename). */
+  async updateSessionTitle(newTitle: string): Promise<SessionRecord> {
+    this.assertReady();
+
+    // 防止在忙碌时修改标题
+    if (this._isBusy) {
+      throw new Error(
+        "Cannot update session title while engine is processing a message.",
+      );
+    }
+
+    const session = await this.sessions!.updateSessionTitle(newTitle);
+    this.emitStateChange();
+    void this.emitSessionListChange();
     return session;
   }
 

@@ -668,7 +668,7 @@ export function createMathematicaMcpTools(): ToolDefinition[] {
         properties: {
           expression: {
             type: "string",
-            description: "Wolfram Language expression to evaluate."
+            description: "Wolfram Language expression to evaluate. But you can NOT use `ClearAll` or similar commands that have side effects on the session state."
           },
           form: {
             type: "string",
