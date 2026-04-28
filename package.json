@@ -1,9 +1,15 @@
 {
   "name": "openmath-ai",
-  "version": "0.2.0",
-  "description": "math agent",
-  "main": "dist/index.js",
+  "version": "0.3.0",
+  "description": "math agent — CLI & library for building math reasoning GUIs",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "dist/index.js",
   "bin": {
     "openmath": "dist/index.js"
   },

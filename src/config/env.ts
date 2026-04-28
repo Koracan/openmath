@@ -56,6 +56,7 @@ if (!parsed.success) {
 
 const env = parsed.data;
 
+/** Mutable runtime configuration object. */
 export const appConfig = {
   provider: env.OPENMATH_PROVIDER,
   baseUrl: env.OPENMATH_BASE_URL.replace(/\/$/, ""),
@@ -90,3 +91,64 @@ export const appConfig = {
   sessionsDir: path.join(process.cwd(), "data", "sessions"),
   scriptDir: path.join(process.cwd(), "data", "tmp", "scripts")
 };
+
+/**
+ * Update runtime config with partial overrides.
+ * This allows GUI consumers to programmatically change settings
+ * (e.g. model, API key, workspace root) without a .env reload.
+ */
+export function updateAppConfig(partial: Partial<typeof appConfig>): void {
+  for (const [key, value] of Object.entries(partial)) {
+    if (value !== undefined && key in appConfig) {
+      (appConfig as Record<string, unknown>)[key] = value;
+    }
+  }
+}
+
+/**
+ * Load configuration from a custom .env file path.
+ * Useful when the GUI lets the user select a config file.
+ * This merges the file's variables into process.env and updates appConfig.
+ */
+export function loadConfigFromFile(filePath: string): void {
+  dotenv.config({ path: filePath, override: true });
+
+  const reParsed = envSchema.safeParse(process.env);
+  if (!reParsed.success) {
+    const details = reParsed.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`Invalid environment configuration in ${filePath}: ${details}`);
+  }
+
+  const env = reParsed.data;
+  appConfig.provider = env.OPENMATH_PROVIDER;
+  appConfig.baseUrl = env.OPENMATH_BASE_URL.replace(/\/$/, "");
+  appConfig.model = env.OPENMATH_MODEL;
+  appConfig.apiKey = env.OPENMATH_API_KEY;
+  appConfig.timeoutMs = env.OPENMATH_TIMEOUT_MS;
+  appConfig.maxContextLength = env.OPENMATH_MAX_CONTEXT_LENGTH;
+  appConfig.maxRetries = env.OPENMATH_MAX_RETRIES;
+  appConfig.retryBaseDelayMs = env.OPENMATH_RETRY_BASE_DELAY_MS;
+  appConfig.rpmLimit = env.OPENMATH_RPM_LIMIT;
+  appConfig.pythonBin = env.OPENMATH_PYTHON_BIN;
+  appConfig.pythonTimeoutSec = env.OPENMATH_PYTHON_TIMEOUT_SEC;
+  appConfig.pythonMaxOutputChars = env.OPENMATH_PYTHON_MAX_OUTPUT_CHARS;
+  appConfig.mmaMcpEnabled = env.OPENMATH_MMA_MCP_ENABLED === "enabled";
+  appConfig.mmaMcpTransport = env.OPENMATH_MMA_MCP_TRANSPORT;
+  appConfig.mmaMcpCommand = env.OPENMATH_MMA_MCP_COMMAND;
+  appConfig.mmaMcpProjectDir = env.OPENMATH_MMA_MCP_PROJECT_DIR;
+  appConfig.mmaMcpExtraArgs = env.OPENMATH_MMA_MCP_EXTRA_ARGS.split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  appConfig.mmaMcpHttpHost = env.OPENMATH_MMA_MCP_HTTP_HOST;
+  appConfig.mmaMcpHttpPort = env.OPENMATH_MMA_MCP_HTTP_PORT;
+  appConfig.mmaMcpTimeoutMs = env.OPENMATH_MMA_MCP_TIMEOUT_SEC * 1000;
+  appConfig.mmaMcpToolCacheTtlMs = env.OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC * 1000;
+  appConfig.mmaMcpMaxTextChars = env.OPENMATH_MMA_MCP_MAX_TEXT_CHARS;
+  appConfig.fileWhitelist = env.OPENMATH_FILE_WHITELIST.split(",")
+    .map((segment) => segment.trim().replace(/\\/g, "/").replace(/^\//, ""))
+    .filter(Boolean);
+  appConfig.thinkingEnabled = env.OPENMATH_THINKING_ENABLED === "enabled";
+  appConfig.reasoningEffort = env.OPENMATH_REASONING_EFFORT as "minimal" | "low" | "medium" | "high" | "max" | "xhigh";
+}
