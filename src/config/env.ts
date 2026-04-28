@@ -16,26 +16,25 @@ dotenv.config({ path: path.join(packageRoot, ".env"), override: false });
 const envSchema = z.object({
   OPENMATH_PROVIDER: z.string(),
   OPENMATH_BASE_URL: z.string().url(),
-  OPENMATH_MODEL: z.string().min(1),
-  OPENMATH_API_KEY: z.string().min(1, "OPENMATH_API_KEY is required"),
+  OPENMATH_MODEL: z.string(),
+  OPENMATH_API_KEY: z.string(),
   OPENMATH_TIMEOUT_MS: z.coerce.number().int().positive(),
   OPENMATH_MAX_CONTEXT_LENGTH: z.coerce.number().int().positive(),
   OPENMATH_MAX_RETRIES: z.coerce.number().int().min(0).max(8),
   OPENMATH_RETRY_BASE_DELAY_MS: z.coerce.number().int().positive(),
   OPENMATH_RPM_LIMIT: z.coerce.number().int().positive(),
-  OPENMATH_PYTHON_BIN: z.string().min(1),
+  OPENMATH_PYTHON_BIN: z.string(),
   OPENMATH_PYTHON_TIMEOUT_SEC: z.coerce.number().int().positive(),
   OPENMATH_PYTHON_MAX_OUTPUT_CHARS: z.coerce.number().int().positive(),
   OPENMATH_MMA_MCP_ENABLED: z.enum(["enabled", "disabled"]),
   OPENMATH_MMA_MCP_TRANSPORT: z
     .enum(["stdio", "http"])
     ,
-  OPENMATH_MMA_MCP_COMMAND: z.string().min(1),
+  OPENMATH_MMA_MCP_COMMAND: z.string(),
   OPENMATH_MMA_MCP_PROJECT_DIR: z
-    .string()
-    .min(1),
+    .string(),
   OPENMATH_MMA_MCP_EXTRA_ARGS: z.string(),
-  OPENMATH_MMA_MCP_HTTP_HOST: z.string().min(1),
+  OPENMATH_MMA_MCP_HTTP_HOST: z.string(),
   OPENMATH_MMA_MCP_HTTP_PORT: z.coerce.number().int().positive(),
   OPENMATH_MMA_MCP_TIMEOUT_SEC: z.coerce.number().int().positive(),
   OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC: z.coerce.number().int().positive(),

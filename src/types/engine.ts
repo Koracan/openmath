@@ -64,6 +64,8 @@ export interface EngineEventCallbacks {
   onStreamStart?: () => void;
   /** Fired for each text chunk in the streaming response. */
   onStreamDelta?: (chunk: string) => void;
+  /** Fired for each reasoning (thinking) chunk during streaming. */
+  onReasoningDelta?: (chunk: string) => void;
   /** Fired when streaming ends. */
   onStreamEnd?: (fullContent: string) => void;
   /** Fired for status messages (tool calls, context compression, etc.). */

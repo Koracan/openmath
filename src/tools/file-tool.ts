@@ -118,7 +118,9 @@ export function createFileTools(): ToolDefinition[] {
         }
 
         try {
-          const filePath = parsed.data.path;
+          const normalizedInput = normalizePathPart(parsed.data.path);
+          const filePath = path.resolve(appConfig.workspaceRoot, normalizedInput);
+          // we allow read access to any file
           const content = await fs.readFile(filePath, "utf8");
           return {
             ok: true,

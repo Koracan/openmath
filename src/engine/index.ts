@@ -1,3 +1,4 @@
+import path from "node:path";
 import { appConfig, loadConfigFromFile as loadEnvFile, updateAppConfig } from "../config/env.js";
 import { OpenAICompatibleModelAdapter } from "../config/models.js";
 import { AgentOrchestrator } from "../agent/orchestrator.js";
@@ -211,6 +212,9 @@ export class OpenMathEngine {
         onStreamDelta: (chunk: string) => {
           this.callbacks.onStreamDelta?.(chunk);
         },
+        onReasoningDelta: (chunk: string) => {
+          this.callbacks.onReasoningDelta?.(chunk);
+        },
         onStreamEnd: () => {
           this.callbacks.onStreamEnd?.("");
         },
@@ -284,21 +288,38 @@ export class OpenMathEngine {
 
   /**
    * Change the workspace root directory at runtime.
-   * The orchestrator is recreated so that subsequent tool calls use the new
-   * workspace path.
+   * Also migrates sessionsDir and scriptDir to live under the new root,
+   * and reloads sessions from the new location.
    */
-  setWorkspaceRoot(root: string): void {
+  async setWorkspaceRoot(root: string): Promise<void> {
     this.assertReady();
-    updateAppConfig({ workspaceRoot: root });
+
+    const normalized = path.resolve(root);
+    const newSessionsDir = path.join(normalized, "data", "sessions");
+    const newScriptDir = path.join(normalized, "data", "tmp", "scripts");
+
+    updateAppConfig({
+      workspaceRoot: normalized,
+      sessionsDir: newSessionsDir,
+      scriptDir: newScriptDir,
+    });
+
+    // Recreate store + session manager so they point to the new dir.
+    this.store = new SessionStore(newSessionsDir);
+    await this.store.ensureReady();
+
+    this.sessions = new SessionManager(this.store);
+    await this.sessions.initialize();
 
     this.orchestrator = new AgentOrchestrator({
       model: this.model_!,
       sessions: this.sessions!,
       tools: this.tools!,
-      workspaceRoot: root,
+      workspaceRoot: normalized,
     });
 
     this.emitStateChange();
+    void this.emitSessionListChange();
   }
 
   /** Get the current workspace root. */

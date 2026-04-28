@@ -7,6 +7,7 @@ interface CompletionInput {
   messages: ChatMessage[];
   tools: ModelFunctionTool[];
   onTextDelta?: (chunk: string) => void;
+  onReasoningDelta?: (chunk: string) => void;
   thinkingEnabled?: boolean;
 }
 
@@ -245,7 +246,16 @@ export class OpenAICompatibleModelAdapter {
         throw new ModelRequestError("Response body is empty.", true);
       }
 
-      return await this.readStreamingResponse(response.body, input.onTextDelta);
+      // Response headers received — clear the connect-timeout.
+      // The stream reader loop below handles its own lifecycle, so a long
+      // thinking phase that keeps sending (reasoning) chunks will NOT abort.
+      clearTimeout(timeout);
+
+      return await this.readStreamingResponse(
+        response.body,
+        input.onTextDelta,
+        input.onReasoningDelta,
+      );
     } catch (error) {
       if ((error as Error).name === "AbortError") {
         throw new ModelRequestError(
@@ -268,6 +278,7 @@ export class OpenAICompatibleModelAdapter {
   private async readStreamingResponse(
     body: ReadableStream<Uint8Array>,
     onTextDelta?: (chunk: string) => void,
+    onReasoningDelta?: (chunk: string) => void,
   ): Promise<CompletionOutput> {
     const reader = body.getReader();
     const decoder = new TextDecoder();
@@ -314,6 +325,7 @@ export class OpenAICompatibleModelAdapter {
         delta.reasoning_content.length > 0
       ) {
         reasoningContent += delta.reasoning_content;
+        onReasoningDelta?.(delta.reasoning_content);
       }
 
       if (typeof delta.content === "string" && delta.content.length > 0) {

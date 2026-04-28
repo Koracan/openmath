@@ -17,6 +17,7 @@ export interface OrchestratorOutput {
   onStatus?: (kind: OrchestratorStatusKind, message: string) => void;
   onStreamStart?: () => void;
   onStreamDelta?: (chunk: string) => void;
+  onReasoningDelta?: (chunk: string) => void;
   onStreamEnd?: () => void;
 }
 
@@ -158,7 +159,10 @@ export class AgentOrchestrator {
           if (chunk.trim().length > 0) {
             hasPrintedContent = true;
           }
-        }
+        },
+        onReasoningDelta: (chunk) => {
+          output?.onReasoningDelta?.(chunk);
+        },
       });
 
       if (sawTextDelta) {
