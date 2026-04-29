@@ -1,6 +1,6 @@
 import { appConfig } from "../config/env.js";
 
-const fileWhitelistHint = appConfig.fileWhitelist
+const fileWhitelistHint = "data/notes\\n" + appConfig.fileWhitelist
   .map((segment) => `- ${segment}`)
   .join("\\n");
 
@@ -17,10 +17,11 @@ export const SYSTEM_PROMPT =[
   "5. FILE SYSTEM:",
   "   - You can ONLY write files under these whitelist path prefixes:",
   fileWhitelistHint,
-  "   - You can use .md as notes to keep important information.",
+  "   - data/notes/ should be used for your memory, other paths can be used for user-facing outputs.",
+  "   - Write final proofs and mathematical answers to .md files for user.",
+  "   - If you kept running into similar issues, write the trap into data/notes/ to avoid it in the future.",
   "   - If a requested output path is outside the whitelist, ask the user to choose a path inside the allowed prefixes.",
   "   - Organize outputs properly by creating descriptive folders and filenames.",
   "   - ALWAYS read existing .md files first when asked to continue, edit, or reference prior notes.",
-  "   - Write final proofs and mathematical answers to .md files using standard LaTeX formatting.",
   "6. CLI COMMUNICATION: Keep CLI responses concise and conversational. Summarize large tool outputs."
 ].join("\n");
