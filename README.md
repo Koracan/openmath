@@ -106,7 +106,7 @@ OPENMATH_FILE_WHITELIST=answers
 - OPENMATH_TAVILY_MAX_RESULTS：Tavily 搜索默认返回结果条数。
 - OPENMATH_FILE_WHITELIST：文件工具可写路径白名单（逗号分隔）。
 - OPENMATH_THINKING_ENABLED：推理偏好开关（enabled/disabled，默认 enabled）。
-	- DeepSeek 模式：映射为 `extra_body.thinking` 的 enabled/disabled。
+	- DeepSeek 模式：映射为 `thinking` 的 enabled/disabled。
 	- GPT 等模式：无 thinking 开关，`disabled` 时会自动把 `reasoning_effort` 降为 `low`。
 - OPENMATH_REASONING_EFFORT：推理强度（minimal/low/medium/high/max/xhigh，默认 high）。模型可用的推理强度一般只有其中一部分，请查询 API 文档。
 

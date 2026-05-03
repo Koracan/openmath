@@ -56,20 +56,12 @@ interface ApiMessage {
 
 type ReasoningMode = "deepseek" | "effort-only";
 
-type ReasoningEffort =
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "max"
-  | "xhigh";
+type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "max" | "xhigh";
 
 interface ReasoningRequestOptions {
   reasoning_effort?: ReasoningEffort;
-  extra_body?: {
-    thinking: {
-      type: "enabled" | "disabled";
-    };
+  thinking?: {
+    type: "enabled" | "disabled";
   };
 }
 
@@ -149,12 +141,12 @@ export class OpenAICompatibleModelAdapter {
       if (thinkingEnabled) {
         return {
           reasoning_effort: appConfig.reasoningEffort,
-          extra_body: { thinking: { type: "enabled" } },
+          thinking: { type: "enabled" },
         };
       }
 
       return {
-        extra_body: { thinking: { type: "disabled" } },
+        thinking: { type: "disabled" },
       };
     }
 
