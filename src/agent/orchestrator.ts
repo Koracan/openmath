@@ -161,6 +161,7 @@ export class AgentOrchestrator {
           }
         },
         onReasoningDelta: (chunk) => {
+          startStream();
           output?.onReasoningDelta?.(chunk);
         },
       });

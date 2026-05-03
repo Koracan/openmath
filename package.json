@@ -1,6 +1,6 @@
 {
   "name": "openmath-ai",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "math agent — CLI & library for building math reasoning GUIs",
   "type": "module",
   "exports": {
