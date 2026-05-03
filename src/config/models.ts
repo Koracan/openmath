@@ -1,3 +1,8 @@
+import OpenAI from "openai";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionChunk,
+} from "openai/resources/chat/completions";
 import type { ChatMessage, ToolCall } from "../types/agent.js";
 import type { ModelFunctionTool } from "../types/tool.js";
 import { appConfig } from "./env.js";
@@ -18,52 +23,7 @@ interface CompletionOutput {
   usageTotalTokens?: number;
 }
 
-interface StreamChunk {
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      reasoning_content?: string;
-      tool_calls?: Array<{
-        index: number;
-        id?: string;
-        function?: {
-          name?: string;
-          arguments?: string;
-        };
-      }>;
-    };
-  }>;
-  usage?: {
-    total_tokens?: number;
-  };
-}
-
-interface ApiMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
-  name?: string;
-  tool_call_id?: string;
-  reasoning_content?: string | null;
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: {
-      name: string;
-      arguments: string;
-    };
-  }>;
-}
-
-type ReasoningMode = "deepseek" | "effort-only";
-
 type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "max" | "xhigh";
-
-interface ReasoningRequestOptions {
-  reasoning_effort?: ReasoningEffort;
-  thinking?: {
-    type: "enabled" | "disabled";
-  };
-}
 
 class ModelRequestError extends Error {
   constructor(
@@ -75,118 +35,110 @@ class ModelRequestError extends Error {
   }
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+function toApiMessages(
+  systemPrompt: string,
+  messages: ChatMessage[],
+): ChatCompletionMessageParam[] {
+  const apiMessages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
+  ];
 
-function toApiMessage(
-  message: ChatMessage,
-  includeReasoningContent: boolean,
-): ApiMessage {
-  if (message.role === "assistant") {
-    const apiMessage: ApiMessage = {
-      role: "assistant",
-      content: message.content,
-      tool_calls: message.toolCalls?.map((call) => ({
-        id: call.id,
-        type: "function",
-        function: {
-          name: call.name,
-          arguments: call.arguments,
-        },
-      })),
-    };
-
-    if (includeReasoningContent) {
-      apiMessage.reasoning_content = message.reasoning_content ?? null;
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      apiMessages.push({
+        role: "assistant",
+        content: message.content,
+        tool_calls: message.toolCalls?.map((call) => ({
+          id: call.id,
+          type: "function",
+          function: {
+            name: call.name,
+            arguments: call.arguments,
+          },
+        })),
+        ...(message.reasoning_content
+          ? { reasoning_content: message.reasoning_content }
+          : {}),
+      } as ChatCompletionMessageParam);
+    } else if (message.role === "tool") {
+      apiMessages.push({
+        role: "tool",
+        content: message.content || "",
+        tool_call_id: message.toolCallId!,
+        ...(message.name ? { name: message.name } : {}),
+      });
+    } else {
+      apiMessages.push({
+        role: message.role as "user" | "system",
+        content: message.content,
+      });
     }
-
-    return apiMessage;
   }
 
-  if (message.role === "tool") {
-    return {
-      role: "tool",
-      content: message.content,
-      name: message.name,
-      tool_call_id: message.toolCallId,
-    };
-  }
-
-  return {
-    role: message.role,
-    content: message.content,
-  };
+  return apiMessages;
 }
 
 export class OpenAICompatibleModelAdapter {
+  private client: OpenAI;
   private lastRequestAt = 0;
 
-  private resolveReasoningMode(): ReasoningMode {
-    const modelName = appConfig.model.toLowerCase();
-    const baseUrl = appConfig.baseUrl.toLowerCase();
-
-    if (modelName.includes("deepseek") || baseUrl.includes("deepseek")) {
-      return "deepseek";
-    }
-
-    return "effort-only";
+  constructor() {
+    this.client = new OpenAI({
+      apiKey: appConfig.apiKey,
+      baseURL: appConfig.baseUrl,
+      maxRetries: 0, // We handle retries manually to maintain enforceRateLimit and custom logic
+    });
   }
 
-  private buildReasoningRequestOptions(
-    mode: ReasoningMode,
-    thinkingEnabled: boolean,
-  ): ReasoningRequestOptions {
-    if (mode === "deepseek") {
-      if (thinkingEnabled) {
-        return {
-          reasoning_effort: appConfig.reasoningEffort,
-          thinking: { type: "enabled" },
-        };
-      }
-
-      return {
-        thinking: { type: "disabled" },
-      };
-    }
-
-    return {
-      reasoning_effort: thinkingEnabled ? appConfig.reasoningEffort : "low",
-    };
+  private resolveIsDeepSeek(): boolean {
+    const modelName = appConfig.model.toLowerCase();
+    const baseUrl = appConfig.baseUrl.toLowerCase();
+    return modelName.includes("deepseek") || baseUrl.includes("deepseek");
   }
 
   async completeChat(input: CompletionInput): Promise<CompletionOutput> {
-    await this.enforceRateLimit();
-
     let lastError: Error | null = null;
+    const maxRetries = appConfig.maxRetries;
 
-    for (let attempt = 0; attempt <= appConfig.maxRetries; attempt += 1) {
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
+        await this.enforceRateLimit();
         return await this.requestCompletion(input);
       } catch (error) {
         lastError = error as Error;
-        const retryable =
-          error instanceof ModelRequestError ? error.retryable : true;
 
-        if (!retryable || attempt === appConfig.maxRetries) {
+        // Handle AbortError or OpenAI specific errors
+        const isRetryable = this.isRetryableError(error);
+
+        if (!isRetryable || attempt === maxRetries) {
           throw lastError;
         }
 
         const delayMs = appConfig.retryBaseDelayMs * 2 ** attempt;
-        await sleep(delayMs);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
 
-    throw (
-      lastError ?? new Error("Completion failed without an explicit error.")
-    );
+    throw lastError ?? new Error("Completion failed");
+  }
+
+  private isRetryableError(error: any): boolean {
+    if (error instanceof ModelRequestError) return error.retryable;
+    if (
+      error.name === "AbortError" ||
+      error.status === 429 ||
+      (error.status && error.status >= 500)
+    ) {
+      return true;
+    }
+    return false;
   }
 
   private async enforceRateLimit(): Promise<void> {
     const minimumIntervalMs = Math.ceil(60_000 / appConfig.rpmLimit);
     const waitMs = this.lastRequestAt + minimumIntervalMs - Date.now();
     if (waitMs > 0) {
-      await sleep(waitMs);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
     this.lastRequestAt = Date.now();
   }
@@ -194,209 +146,104 @@ export class OpenAICompatibleModelAdapter {
   private async requestCompletion(
     input: CompletionInput,
   ): Promise<CompletionOutput> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), appConfig.timeoutMs);
+    const thinkingEnabled = input.thinkingEnabled ?? appConfig.thinkingEnabled;
+    const isDeepSeek = this.resolveIsDeepSeek();
+    const messages = toApiMessages(input.systemPrompt, input.messages);
+
+    const tools = input.tools.length > 0 ? input.tools : undefined;
+
+    let reasoningOptions: any = {};
+    if (isDeepSeek) {
+      reasoningOptions = {
+        thinking: { type: thinkingEnabled ? "enabled" : "disabled" },
+      };
+      if (thinkingEnabled) {
+        reasoningOptions.reasoning_effort = appConfig.reasoningEffort;
+      }
+    } else {
+      reasoningOptions = {
+        reasoning_effort: thinkingEnabled ? appConfig.reasoningEffort : "low",
+      };
+    }
 
     try {
-      const thinkingEnabled =
-        input.thinkingEnabled ?? appConfig.thinkingEnabled;
-      const reasoningMode = this.resolveReasoningMode();
-      const messages: ApiMessage[] = [
-        { role: "system", content: input.systemPrompt },
-        ...input.messages.map((message) =>
-          toApiMessage(message, reasoningMode === "deepseek"),
-        ),
-      ];
-
-      const response = await fetch(`${appConfig.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${appConfig.apiKey}`,
-        },
-        body: JSON.stringify({
+      const stream = await this.client.chat.completions.create(
+        {
           model: appConfig.model,
+          messages,
+          tools,
           stream: true,
           stream_options: { include_usage: true },
-          messages,
-          tools: input.tools.length > 0 ? input.tools : undefined,
-          ...this.buildReasoningRequestOptions(reasoningMode, thinkingEnabled),
-        }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const body = await response.text();
-        const retryable = response.status === 429 || response.status >= 500;
-        throw new ModelRequestError(
-          `LLM request failed with status ${response.status}: ${body.slice(0, 300)}`,
-          retryable,
-        );
-      }
-
-      if (!response.body) {
-        throw new ModelRequestError("Response body is empty.", true);
-      }
-
-      // Response headers received — clear the connect-timeout.
-      // The stream reader loop below handles its own lifecycle, so a long
-      // thinking phase that keeps sending (reasoning) chunks will NOT abort.
-      clearTimeout(timeout);
-
-      return await this.readStreamingResponse(
-        response.body,
-        input.onTextDelta,
-        input.onReasoningDelta,
+          ...reasoningOptions,
+        },
+        {
+          timeout: appConfig.timeoutMs,
+        },
       );
-    } catch (error) {
-      if ((error as Error).name === "AbortError") {
+
+      let modelContent = "";
+      let reasoningContent = "";
+      let usageTotalTokens: number | undefined;
+      const toolCallsByIndex = new Map<number, ToolCall>();
+
+      for await (const chunk of stream as unknown as AsyncIterable<ChatCompletionChunk>) {
+        if (chunk.usage?.total_tokens) {
+          usageTotalTokens = chunk.usage.total_tokens;
+        }
+
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) continue;
+
+        if ("reasoning_content" in delta && delta.reasoning_content) {
+          const content = delta.reasoning_content as string;
+          reasoningContent += content;
+          input.onReasoningDelta?.(content);
+        }
+
+        if (delta.content) {
+          modelContent += delta.content;
+          input.onTextDelta?.(delta.content);
+        }
+
+        if (delta.tool_calls) {
+          for (const fragment of delta.tool_calls) {
+            const index = fragment.index;
+            const previous = toolCallsByIndex.get(index) ?? {
+              id: fragment.id || `tool-${index}`,
+              name: "",
+              arguments: "",
+            };
+
+            if (fragment.id) previous.id = fragment.id;
+            if (fragment.function?.name) previous.name = fragment.function.name;
+            if (fragment.function?.arguments)
+              previous.arguments += fragment.function.arguments;
+
+            toolCallsByIndex.set(index, previous);
+          }
+        }
+      }
+
+      return {
+        content: modelContent,
+        reasoning_content: reasoningContent || undefined,
+        usageTotalTokens,
+        toolCalls: Array.from(toolCallsByIndex.entries())
+          .sort(([a], [b]) => a - b)
+          .map(([, call]) => ({
+            id: call.id,
+            name: call.name || "unknown_tool",
+            arguments: call.arguments || "{}",
+          })),
+      };
+    } catch (error: any) {
+      if (error.name === "AbortError" || error.code === "ETIMEDOUT") {
         throw new ModelRequestError(
           `Request timed out after ${appConfig.timeoutMs}ms.`,
           true,
         );
       }
-      if (error instanceof ModelRequestError) {
-        throw error;
-      }
-      throw new ModelRequestError(
-        `Network or parsing error: ${(error as Error).message}`,
-        true,
-      );
-    } finally {
-      clearTimeout(timeout);
+      throw error;
     }
-  }
-
-  private async readStreamingResponse(
-    body: ReadableStream<Uint8Array>,
-    onTextDelta?: (chunk: string) => void,
-    onReasoningDelta?: (chunk: string) => void,
-  ): Promise<CompletionOutput> {
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-
-    let textBuffer = "";
-    let modelContent = "";
-    let reasoningContent = "";
-    let usageTotalTokens: number | undefined;
-    const toolCallsByIndex = new Map<number, ToolCall>();
-
-    const consumeLine = (line: string): boolean => {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) {
-        return false;
-      }
-
-      const payloadText = trimmed.slice(5).trim();
-      if (!payloadText) {
-        return false;
-      }
-
-      if (payloadText === "[DONE]") {
-        return true;
-      }
-
-      let payload: StreamChunk;
-      try {
-        payload = JSON.parse(payloadText) as StreamChunk;
-      } catch {
-        return false;
-      }
-
-      if (typeof payload.usage?.total_tokens === "number") {
-        usageTotalTokens = payload.usage.total_tokens;
-      }
-
-      const delta = payload.choices?.[0]?.delta;
-      if (!delta) {
-        return false;
-      }
-
-      if (
-        typeof delta.reasoning_content === "string" &&
-        delta.reasoning_content.length > 0
-      ) {
-        reasoningContent += delta.reasoning_content;
-        onReasoningDelta?.(delta.reasoning_content);
-      }
-
-      if (typeof delta.content === "string" && delta.content.length > 0) {
-        modelContent += delta.content;
-        onTextDelta?.(delta.content);
-      }
-
-      if (Array.isArray(delta.tool_calls)) {
-        for (const fragment of delta.tool_calls) {
-          const index = fragment.index;
-          const previous = toolCallsByIndex.get(index) ?? {
-            id: `tool-${index}`,
-            name: "",
-            arguments: "",
-          };
-
-          if (fragment.id) {
-            previous.id = fragment.id;
-          }
-          if (fragment.function?.name) {
-            previous.name = fragment.function.name;
-          }
-          if (fragment.function?.arguments) {
-            previous.arguments += fragment.function.arguments;
-          }
-
-          toolCallsByIndex.set(index, previous);
-        }
-      }
-
-      return false;
-    };
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      textBuffer += decoder.decode(value, { stream: true });
-      let lineBreak = textBuffer.indexOf("\n");
-
-      while (lineBreak !== -1) {
-        const line = textBuffer.slice(0, lineBreak);
-        textBuffer = textBuffer.slice(lineBreak + 1);
-        const doneSignal = consumeLine(line);
-        if (doneSignal) {
-          return {
-            content: modelContent,
-            reasoning_content: reasoningContent || undefined,
-            usageTotalTokens,
-            toolCalls: [...toolCallsByIndex.entries()]
-              .sort(([left], [right]) => left - right)
-              .map(([, call]) => ({
-                id: call.id,
-                name: call.name || "unknown_tool",
-                arguments: call.arguments || "{}",
-              })),
-          };
-        }
-        lineBreak = textBuffer.indexOf("\n");
-      }
-    }
-
-    if (textBuffer.trim()) {
-      consumeLine(textBuffer);
-    }
-
-    return {
-      content: modelContent,
-      reasoning_content: reasoningContent || undefined,
-      usageTotalTokens,
-      toolCalls: [...toolCallsByIndex.entries()]
-        .sort(([left], [right]) => left - right)
-        .map(([, call]) => ({
-          id: call.id,
-          name: call.name || "unknown_tool",
-          arguments: call.arguments || "{}",
-        })),
-    };
   }
 }

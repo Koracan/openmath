@@ -184,7 +184,7 @@ export class AgentOrchestrator {
       await this.sessions.addModelMessage(
         model.content,
         model.toolCalls.length > 0 ? model.toolCalls : undefined,
-        model.reasoning_content
+        model.reasoning_content,
       );
 
       if (typeof model.usageTotalTokens === "number") {

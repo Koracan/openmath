@@ -25,6 +25,7 @@
   "author": "han-wong",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^1.51.0",
     "@langgraph-js/crawler": "^2.0.0",
     "@tavily/core": "^0.7.3",
     "dotenv": "^17.2.3",
@@ -35,6 +36,7 @@
     "install": "^0.13.0",
     "mathlive": "^0.109.1",
     "npm": "^11.13.0",
+    "openai": "^6.35.0",
     "react": "^19.2.0",
     "zod": "^4.1.12"
   },

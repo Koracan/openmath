@@ -14,7 +14,7 @@ dotenv.config();
 dotenv.config({ path: path.join(packageRoot, ".env"), override: false });
 
 const envSchema = z.object({
-  OPENMATH_PROVIDER: z.string(),
+  OPENMATH_PROVIDER: z.enum(["openai-compatible", "anthropic", "google"]),
   OPENMATH_BASE_URL: z.string().url(),
   OPENMATH_MODEL: z.string(),
   OPENMATH_API_KEY: z.string(),
