@@ -8,6 +8,8 @@ import type {
 import { createMathematicaMcpTools } from "./mathematica-mcp-tool.js";
 import { createFileTools } from "./file-tool.js";
 import { createPythonTool } from "./python-tool.js";
+import { appConfig } from "../config/env.js";
+
 
 export class ToolRegistry {
   private readonly toolsByName: Map<string, ToolDefinition>;
@@ -19,7 +21,7 @@ export class ToolRegistry {
   static createDefault(): ToolRegistry {
     return new ToolRegistry([
       createPythonTool(),
-      ...createMathematicaMcpTools(),
+      ...(appConfig.mmaMcpEnabled ? createMathematicaMcpTools() : []),
       ...createFileTools()
     ]);
   }
