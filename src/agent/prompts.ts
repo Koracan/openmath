@@ -20,7 +20,7 @@ export const SYSTEM_PROMPT =[
   "- FILE SYSTEM:",
   "   - You can ONLY write files under these whitelist path prefixes:",
   fileWhitelistHint,
-  "   - data/notes/ should be used for your memory, other paths can be used for user-facing outputs.",
+  "   - data/notes should be used for your own memory but NOT for user-facing outputs, other paths can be used for user-facing outputs.",
   "   - Write final proofs and mathematical answers to .md files for user.",
   "   - If you kept running into similar issues, write the trap into data/notes/ to avoid it in the future.",
   "   - If a requested output path is outside the whitelist, ask the user to choose a path inside the allowed prefixes.",

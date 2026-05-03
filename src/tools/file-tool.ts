@@ -19,7 +19,8 @@ function assertAllowedFilePath(relativePath: string): string {
     throw new Error("Path escapes workspace root.");
   }
 
-  const allowed = appConfig.fileWhitelist.some((prefix) => {
+  const whitelist = ["data/notes",...appConfig.fileWhitelist];
+  const allowed = whitelist.some((prefix) => {
     const normalizedPrefix = normalizePathPart(prefix);
     return relative === normalizedPrefix || relative.startsWith(`${normalizedPrefix}/`);
   });
