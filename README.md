@@ -5,6 +5,7 @@
 - 可配置 OpenAI 兼容 API
 - Python + Markdown 工具
 - Mathematica MCP 工具接入
+- Tavily 实时互联网搜索工具
 
 ## 1. 环境准备
 
@@ -60,6 +61,15 @@ OPENMATH_MMA_MCP_TIMEOUT_SEC=45
 OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC=30
 OPENMATH_MMA_MCP_MAX_TEXT_CHARS=12000
 
+OPENMATH_OPEN_URL=enabled
+OPENMATH_OPEN_URL_TIMEOUT_SEC=10
+OPENMATH_OPEN_URL_MAX_CHARS=12000
+
+OPENMATH_TAVILY_SEARCH_ENABLED=disabled
+OPENMATH_TAVILY_API_KEY=
+OPENMATH_TAVILY_TIMEOUT_SEC=10
+OPENMATH_TAVILY_MAX_RESULTS=5
+
 OPENMATH_FILE_WHITELIST=answers
 ```
 
@@ -87,6 +97,13 @@ OPENMATH_FILE_WHITELIST=answers
 - OPENMATH_MMA_MCP_TIMEOUT_SEC：MCP 请求超时（秒）。
 - OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC：远端工具列表缓存时长（秒）。
 - OPENMATH_MMA_MCP_MAX_TEXT_CHARS：Mathematica 文本结果截断上限。
+- OPENMATH_OPEN_URL：是否启用打开 URL 工具（enabled/disabled）。
+- OPENMATH_OPEN_URL_TIMEOUT_SEC： 打开 URL 请求超时（秒）。
+- OPENMATH_OPEN_URL_MAX_CHARS：打开 URL 结果截断上限。
+- OPENMATH_TAVILY_SEARCH_ENABLED：是否启用 Tavily 搜索工具（enabled/disabled）。
+- OPENMATH_TAVILY_API_KEY：Tavily API 密钥。
+- OPENMATH_TAVILY_TIMEOUT_SEC：Tavily 搜索请求超时（秒）。
+- OPENMATH_TAVILY_MAX_RESULTS：Tavily 搜索默认返回结果条数。
 - OPENMATH_FILE_WHITELIST：文件工具可写路径白名单（逗号分隔）。
 - OPENMATH_THINKING_ENABLED：推理偏好开关（enabled/disabled，默认 enabled）。
 	- DeepSeek 模式：映射为 `extra_body.thinking` 的 enabled/disabled。
@@ -153,3 +170,7 @@ npm link
 ### 5.3 文件写入被拒绝
 
 目标路径必须在 OPENMATH_FILE_WHITELIST 白名单中。
+
+### 5.4 网络问题
+
+如果你需要使用代理，请配置好环境变量 `HTTP_PROXY=your_http_proxy`, `HTTPS_PROXY=your_https_proxy` 以及 `NODE_USE_ENV_PROXY=1`。

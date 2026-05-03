@@ -39,6 +39,13 @@ const envSchema = z.object({
   OPENMATH_MMA_MCP_TIMEOUT_SEC: z.coerce.number().int().positive(),
   OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC: z.coerce.number().int().positive(),
   OPENMATH_MMA_MCP_MAX_TEXT_CHARS: z.coerce.number().int().positive(),
+  OPENMATH_OPEN_URL: z.enum(["enabled", "disabled"]),
+  OPENMATH_OPEN_URL_TIMEOUT_SEC: z.coerce.number().int().positive(),
+  OPENMATH_OPEN_URL_MAX_CHARS: z.coerce.number().int().positive(),
+  OPENMATH_TAVILY_SEARCH_ENABLED: z.enum(["enabled", "disabled"]),
+  OPENMATH_TAVILY_API_KEY: z.string(),
+  OPENMATH_TAVILY_TIMEOUT_SEC: z.coerce.number().int().positive(),
+  OPENMATH_TAVILY_MAX_RESULTS: z.coerce.number().int().positive(),
   OPENMATH_FILE_WHITELIST: z.string(),
   OPENMATH_THINKING_ENABLED: z.enum(["enabled", "disabled"]),
   OPENMATH_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high", "max", "xhigh"])
@@ -80,6 +87,13 @@ export const appConfig = {
   mmaMcpTimeoutMs: env.OPENMATH_MMA_MCP_TIMEOUT_SEC * 1000,
   mmaMcpToolCacheTtlMs: env.OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC * 1000,
   mmaMcpMaxTextChars: env.OPENMATH_MMA_MCP_MAX_TEXT_CHARS,
+  openUrlEnabled: env.OPENMATH_OPEN_URL === "enabled",
+  openUrlTimeoutMs: env.OPENMATH_OPEN_URL_TIMEOUT_SEC * 1000,
+  openUrlMaxChars: env.OPENMATH_OPEN_URL_MAX_CHARS,
+  tavilySearchEnabled: env.OPENMATH_TAVILY_SEARCH_ENABLED === "enabled",
+  tavilyApiKey: env.OPENMATH_TAVILY_API_KEY,
+  tavilyTimeoutMs: env.OPENMATH_TAVILY_TIMEOUT_SEC * 1000,
+  tavilyMaxResults: env.OPENMATH_TAVILY_MAX_RESULTS,
   fileWhitelist: env.OPENMATH_FILE_WHITELIST.split(",")
     .map((segment) => segment.trim().replace(/\\/g, "/").replace(/^\//, ""))
     .filter(Boolean),
@@ -144,6 +158,13 @@ export function loadConfigFromFile(filePath: string): void {
   appConfig.mmaMcpTimeoutMs = env.OPENMATH_MMA_MCP_TIMEOUT_SEC * 1000;
   appConfig.mmaMcpToolCacheTtlMs = env.OPENMATH_MMA_MCP_TOOL_CACHE_TTL_SEC * 1000;
   appConfig.mmaMcpMaxTextChars = env.OPENMATH_MMA_MCP_MAX_TEXT_CHARS;
+  appConfig.openUrlEnabled = env.OPENMATH_OPEN_URL === "enabled";
+  appConfig.tavilySearchEnabled = env.OPENMATH_TAVILY_SEARCH_ENABLED === "enabled";
+  appConfig.tavilyApiKey = env.OPENMATH_TAVILY_API_KEY;
+  appConfig.tavilyTimeoutMs = env.OPENMATH_TAVILY_TIMEOUT_SEC * 1000;
+  appConfig.tavilyMaxResults = env.OPENMATH_TAVILY_MAX_RESULTS;
+  appConfig.openUrlTimeoutMs = env.OPENMATH_OPEN_URL_TIMEOUT_SEC * 1000;
+  appConfig.openUrlMaxChars = env.OPENMATH_OPEN_URL_MAX_CHARS;
   appConfig.fileWhitelist = env.OPENMATH_FILE_WHITELIST.split(",")
     .map((segment) => segment.trim().replace(/\\/g, "/").replace(/^\//, ""))
     .filter(Boolean);

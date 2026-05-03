@@ -28,6 +28,11 @@ export interface ConfigOptions {
   mmaMcpTimeoutMs: number;
   mmaMcpToolCacheTtlMs: number;
   mmaMcpMaxTextChars: number;
+  openUrlEnabled: boolean;
+  tavilySearchEnabled: boolean;
+  tavilyApiKey: string;
+  tavilyTimeoutMs: number;
+  tavilyMaxResults: number;
   fileWhitelist: string[];
   thinkingEnabled: boolean;
   reasoningEffort: "minimal" | "low" | "medium" | "high" | "max" | "xhigh";

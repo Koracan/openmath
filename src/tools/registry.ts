@@ -8,6 +8,8 @@ import type {
 import { createMathematicaMcpTools } from "./mathematica-mcp-tool.js";
 import { createFileTools } from "./file-tool.js";
 import { createPythonTool } from "./python-tool.js";
+import { createTavilySearchTool } from "./tavily-search-tool.js";
+import { createOpenUrlTool } from "./open-url-tool.js";
 import { appConfig } from "../config/env.js";
 
 
@@ -22,6 +24,8 @@ export class ToolRegistry {
     return new ToolRegistry([
       createPythonTool(),
       ...(appConfig.mmaMcpEnabled ? createMathematicaMcpTools() : []),
+      ...(appConfig.tavilySearchEnabled ? [createTavilySearchTool()] : []),
+      ...(appConfig.openUrlEnabled ? [createOpenUrlTool()] : []),
       ...createFileTools()
     ]);
   }

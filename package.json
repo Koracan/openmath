@@ -1,6 +1,6 @@
 {
   "name": "openmath-ai",
-  "version": "0.3.11",
+  "version": "0.4.0",
   "description": "math agent — CLI & library for building math reasoning GUIs",
   "type": "module",
   "exports": {
@@ -25,12 +25,16 @@
   "author": "han-wong",
   "license": "ISC",
   "dependencies": {
+    "@langgraph-js/crawler": "^2.0.0",
+    "@tavily/core": "^0.7.3",
     "dotenv": "^17.2.3",
     "gray-matter": "^4.0.3",
     "ink": "^6.8.0",
     "ink-markdown-es": "^1.4.0",
     "ink-text-input": "^6.0.0",
+    "install": "^0.13.0",
     "mathlive": "^0.109.1",
+    "npm": "^11.13.0",
     "react": "^19.2.0",
     "zod": "^4.1.12"
   },
