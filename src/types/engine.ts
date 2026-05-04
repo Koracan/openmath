@@ -6,7 +6,7 @@ import type { OrchestratorStatusKind } from "../agent/orchestrator.js";
  * Mirrors the .env configuration schema.
  */
 export interface ConfigOptions {
-  provider: string;
+  provider: "openai-compatible" | "anthropic" | "google";
   baseUrl: string;
   model: string;
   apiKey: string;

@@ -4,7 +4,8 @@ import {
   loadConfigFromFile as loadEnvFile,
   updateAppConfig,
 } from "../config/env.js";
-import { OpenAICompatibleModelAdapter } from "../config/models.js";
+import { createModelAdapter } from "../config/models.js";
+import type { ModelAdapter } from "../config/models.js";
 import { AgentOrchestrator } from "../agent/orchestrator.js";
 import type {
   OrchestratorOutput,
@@ -28,7 +29,7 @@ const TITLE_PROMPT =
   "You are a helpful assistant that generates short, concise session titles based on the user's first message in a math-oriented CLI tool.\nRules:\n- Respond with ONLY the title, no quotes, no punctuation, no extra text.\n- Max 5 words.\n- Summarize the mathematical topic concisely.";
 
 async function generateSessionTitle(
-  model: OpenAICompatibleModelAdapter,
+  model: ModelAdapter,
   userMessage: string,
 ): Promise<string> {
   const result = await model.completeChat({
@@ -65,7 +66,7 @@ export class OpenMathEngine {
   private sessions: SessionManager | null = null;
   private store: SessionStore | null = null;
   private tools: ToolRegistry | null = null;
-  private model_: OpenAICompatibleModelAdapter | null = null;
+  private model_: ModelAdapter | null = null;
   private orchestrator: AgentOrchestrator | null = null;
 
   private callbacks: EngineEventCallbacks = {};
@@ -153,7 +154,7 @@ export class OpenMathEngine {
     await this.sessions.initialize();
 
     this.tools = ToolRegistry.createDefault();
-    this.model_ = new OpenAICompatibleModelAdapter();
+    this.model_ = createModelAdapter();
     this.orchestrator = new AgentOrchestrator({
       model: this.model_,
       sessions: this.sessions,

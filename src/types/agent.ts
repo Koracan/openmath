@@ -13,6 +13,8 @@ export interface ChatMessage {
   toolCallId?: string;
   toolCalls?: ToolCall[];
   reasoning_content?: string;
+  /** Provider-specific metadata (e.g. raw Gemini parts for round-trip fidelity). */
+  providerMetadata?: Record<string, unknown>;
 }
 
 export interface SessionRecord {

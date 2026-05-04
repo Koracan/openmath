@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, type JSX } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import Markdown from "ink-markdown-es";
 import { appConfig } from "../config/env.js";
-import { OpenAICompatibleModelAdapter } from "../config/models.js";
+import { createModelAdapter } from "../config/models.js";
 import { AgentOrchestrator } from "../agent/orchestrator.js";
 import type {
   OrchestratorOutput,
@@ -22,6 +22,7 @@ import { SessionStore } from "../session/session-store.js";
 import { ToolRegistry } from "../tools/registry.js";
 import type { ChatMessage, SessionRecord } from "../types/agent.js";
 import { MultilineInput } from "./multiline-input.js";
+import { ModelAdapter } from "../config/models.js";
 
 const HELP_TEXT = [
   "Commands:",
@@ -122,7 +123,7 @@ function formatHistoryOutput(messages: ChatMessage[], limit: number): string {
 }
 
 async function generateSessionTitle(
-  model: OpenAICompatibleModelAdapter,
+  model: ModelAdapter,
   userMessage: string,
 ): Promise<string> {
   const TITLE_PROMPT =
@@ -183,7 +184,7 @@ export function App(): JSX.Element {
   const idRef = useRef(0);
   const isMountedRef = useRef(true);
   const sessionsRef = useRef<SessionManager | null>(null);
-  const modelRef = useRef<OpenAICompatibleModelAdapter | null>(null);
+  const modelRef = useRef<ModelAdapter | null>(null);
   const orchestratorRef = useRef<AgentOrchestrator | null>(null);
   const streamTransformerRef = useRef<MarkdownStreamTransformer | null>(null);
   const streamBufferRef = useRef("");
@@ -294,7 +295,7 @@ export function App(): JSX.Element {
         const current = await sessions.initialize();
 
         const tools = ToolRegistry.createDefault();
-        const model = new OpenAICompatibleModelAdapter();
+        const model = createModelAdapter();
         const orchestrator = new AgentOrchestrator({
           model,
           sessions,

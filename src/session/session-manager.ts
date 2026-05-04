@@ -246,12 +246,14 @@ export class SessionManager {
     content: string,
     toolCalls?: ToolCall[],
     reasoning_content?: string,
+    providerMetadata?: Record<string, unknown>,
   ): Promise<void> {
     await this.appendMessage({
       role: "assistant",
       content,
       toolCalls,
       reasoning_content,
+      providerMetadata,
     });
   }
 

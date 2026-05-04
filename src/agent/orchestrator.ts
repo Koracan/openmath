@@ -1,11 +1,11 @@
 import { SYSTEM_PROMPT } from "./prompts.js";
-import { OpenAICompatibleModelAdapter } from "../config/models.js";
+import type { ModelAdapter } from "../config/models.js";
 import { appConfig } from "../config/env.js";
 import { SessionManager } from "../session/session-manager.js";
 import { ToolRegistry } from "../tools/registry.js";
 
 interface OrchestratorOptions {
-  model: OpenAICompatibleModelAdapter;
+  model: ModelAdapter;
   sessions: SessionManager;
   tools: ToolRegistry;
   workspaceRoot: string;
@@ -66,7 +66,7 @@ function emitStatus(
 }
 
 export class AgentOrchestrator {
-  private readonly model: OpenAICompatibleModelAdapter;
+  private readonly model: ModelAdapter;
   private readonly sessions: SessionManager;
   private readonly tools: ToolRegistry;
   private readonly workspaceRoot: string;
@@ -185,6 +185,7 @@ export class AgentOrchestrator {
         model.content,
         model.toolCalls.length > 0 ? model.toolCalls : undefined,
         model.reasoning_content,
+        model.providerMetadata,
       );
 
       if (typeof model.usageTotalTokens === "number") {
