@@ -75,7 +75,7 @@ OPENMATH_FILE_WHITELIST=answers
 
 ### 2.3 配置项说明
 
-- OPENMATH_PROVIDER：模型提供方标识（当前走 openai-compatible 适配器）。
+- OPENMATH_PROVIDER：模型提供方标识（openai-compatible/anthropic/google，当前 anthropic 会被映射到 openai-compatible）。
 - OPENMATH_BASE_URL：兼容 OpenAI Chat Completions 的服务地址。
 - OPENMATH_MODEL：默认模型名。
 - OPENMATH_API_KEY：API 密钥（必填）。
