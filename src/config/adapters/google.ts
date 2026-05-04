@@ -35,7 +35,6 @@ function toGeminiInput(
   messages: ChatMessage[],
 ): { contents: Content[]; systemInstruction: Content } {
   const systemInstruction: Content = {
-    role: "user",
     parts: [{ text: systemPrompt } as Part],
   };
 
